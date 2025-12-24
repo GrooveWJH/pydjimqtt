@@ -1,0 +1,12 @@
+vrpn/build/
+vrpn/cmake_install.cmake
+vrpn/CMakeCache.txt
+vrpn/Makefile
+vrpn/vrpn_client
+vrpn/vrpn-build/
+vrpn/vrpn-src/
+vrpn/vrpn-stamp/
+__pycache__/
+*.pyc
+.DS_Store
+venv/

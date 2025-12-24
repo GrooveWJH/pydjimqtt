@@ -1,0 +1,24 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Drone Video Streams</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <!-- Mode Toggle Button -->
+    <div class="mode-toggle-container">
+        <button id="mode-toggle-btn" class="mode-toggle-btn">
+            <span class="mode-icon">🏠</span>
+            <span class="mode-text">室内模式</span>
+        </button>
+    </div>
+
+    <!-- Video Container (dynamically populated) -->
+    <div class="container" id="video-container"></div>
+
+    <script src="https://cdn.jsdelivr.net/npm/hls.js@latest"></script>
+    <script src="script.js"></script>
+</body>
+</html>
