@@ -14,3 +14,4 @@
 - 09_mock_and_testing.md: Mock 系统与测试方法
 - 10_troubleshooting.md: 常见问题与排查路径
 - 11_reference_topics.md: MQTT 主题与消息结构参考
+- 12_design.md: 设计原理、分层结构与取舍说明

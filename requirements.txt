@@ -8,6 +8,8 @@ mdurl==0.1.2
     # via
     #   pydjimqtt (pyproject.toml)
     #   markdown-it-py
+packaging==25.0
+    # via pydjimqtt (pyproject.toml)
 paho-mqtt==2.1.0
     # via pydjimqtt (pyproject.toml)
 pygments==2.19.2

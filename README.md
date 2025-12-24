@@ -191,6 +191,12 @@ pydjimqtt/
 当前测试集中在 `tests/` 目录。
 如需自定义测试，建议先确认 MQTT 可连接、控制权流程可跑通。
 
+推荐使用 uv 环境运行 pytest（避免系统 pytest 插件冲突）：
+
+```bash
+uv run python -m pytest -q tests/test_api_smoke.py
+```
+
 ## 常见问题
 
 - `ModuleNotFoundError: pydjimqtt`: 先执行 `pip install -e .` 或使用 `PYTHONPATH=./src`
