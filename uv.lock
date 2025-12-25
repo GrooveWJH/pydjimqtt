@@ -85,10 +85,14 @@ dependencies = [
     { name = "paho-mqtt" },
     { name = "pygments" },
     { name = "pynput" },
-    { name = "pyobjc" },
     { name = "pytest" },
     { name = "rich" },
     { name = "six" },
+]
+
+[package.optional-dependencies]
+macos = [
+    { name = "pyobjc" },
 ]
 
 [package.metadata]
@@ -99,11 +103,12 @@ requires-dist = [
     { name = "paho-mqtt", specifier = ">=2.1.0" },
     { name = "pygments", specifier = ">=2.19.2" },
     { name = "pynput", specifier = ">=1.8.1" },
-    { name = "pyobjc", specifier = ">=12.1" },
+    { name = "pyobjc", marker = "extra == 'macos'", specifier = ">=12.1" },
     { name = "pytest", specifier = ">=9.0.2" },
     { name = "rich", specifier = ">=14.2.0" },
     { name = "six", specifier = ">=1.17.0" },
 ]
+provides-extras = ["macos"]
 
 [[package]]
 name = "pygments"
