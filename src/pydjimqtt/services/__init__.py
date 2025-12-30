@@ -18,7 +18,7 @@ from .commands import (
     setup_multiple_drc_connections,
 )
 from .heartbeat import start_heartbeat, stop_heartbeat
-from .drc_commands import send_stick_control, set_camera_zoom, camera_look_at, camera_aim
+from .drc_commands import send_stick_control, set_camera_zoom, take_photo, take_photo_wait, camera_look_at, camera_aim
 from .connection_manager import DRCConnectionManager, ConnectionState
 
 __all__ = [
@@ -43,6 +43,8 @@ __all__ = [
     'send_stick_control',
     # 相机和云台控制
     'set_camera_zoom',
+    'take_photo',
+    'take_photo_wait',
     'camera_look_at',
     'camera_aim',
     'reset_gimbal',

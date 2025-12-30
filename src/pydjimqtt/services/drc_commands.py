@@ -9,6 +9,7 @@ DRC 无回包指令（Fire-and-forget 模式）
 """
 import json
 import time
+import threading
 from ..core import MQTTClient
 from rich.console import Console
 
@@ -146,6 +147,99 @@ def set_camera_zoom(
     except Exception as e:
         console.print(f"[red]✗ 变焦控制发送失败: {e}[/red]")
         raise
+
+
+def take_photo(
+    mqtt_client: MQTTClient,
+    payload_index: str,
+    seq: int | None = None
+) -> None:
+    """
+    发送拍照指令（单次发送，Fire-and-forget）
+
+    Args:
+        mqtt_client: MQTT 客户端
+        payload_index: 相机枚举值（格式: {type-subtype-gimbalindex}，如 "89-0-0"）
+        seq: 序列号（None 则自动生成时间戳）
+
+    注意:
+        - 无返回值（Fire-and-forget）
+        - 响应会通过 drc/up 上报 method: drc_camera_photo_take
+    """
+    if not payload_index:
+        console.print("[red]✗ payload_index 不能为空[/red]")
+        raise ValueError("payload_index must be a non-empty string")
+
+    if seq is None:
+        seq = int(time.time() * 1000)
+
+    topic = f"thing/product/{mqtt_client.gateway_sn}/drc/down"
+    payload = {
+        "seq": seq,
+        "method": "drc_camera_photo_take",
+        "data": {
+            "payload_index": payload_index
+        }
+    }
+
+    try:
+        mqtt_client.client.publish(topic, json.dumps(payload), qos=0)
+        console.print(f"[cyan]→[/cyan] 拍照指令已发送 (payload: {payload_index})")
+    except Exception as e:
+        console.print(f"[red]✗ 拍照指令发送失败: {e}[/red]")
+        raise
+
+
+def take_photo_wait(
+    mqtt_client: MQTTClient,
+    payload_index: str,
+    timeout: float = 10.0,
+    seq: int | None = None
+) -> dict:
+    """
+    发送拍照指令并等待结果回包。
+
+    Returns:
+        {'ok': bool, 'result': int | None, 'status': str | None, 'seq': int}
+    """
+    if not mqtt_client.client:
+        raise RuntimeError("MQTT client is not connected")
+
+    if seq is None:
+        seq = int(time.time() * 1000)
+
+    result_box: dict = {"result": None, "status": None}
+    done = threading.Event()
+    original_on_message = mqtt_client.client.on_message
+
+    def on_message(client, userdata, msg):
+        try:
+            payload = json.loads(msg.payload.decode())
+        except Exception:
+            payload = {}
+        if payload.get("method") == "drc_camera_photo_take" and payload.get("seq") == seq:
+            data = payload.get("data", {})
+            result_box["result"] = data.get("result")
+            result_box["status"] = data.get("status")
+            done.set()
+        if original_on_message:
+            original_on_message(client, userdata, msg)
+
+    mqtt_client.client.on_message = on_message
+    try:
+        take_photo(mqtt_client, payload_index=payload_index, seq=seq)
+        if not done.wait(timeout):
+            raise TimeoutError("drc_camera_photo_take timeout")
+    finally:
+        mqtt_client.client.on_message = original_on_message
+
+    result = result_box.get("result")
+    return {
+        "ok": result == 0,
+        "result": result,
+        "status": result_box.get("status"),
+        "seq": seq,
+    }
 
 
 def camera_look_at(
