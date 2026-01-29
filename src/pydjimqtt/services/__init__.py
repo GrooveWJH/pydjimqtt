@@ -18,7 +18,16 @@ from .commands import (
     setup_multiple_drc_connections,
 )
 from .heartbeat import start_heartbeat, stop_heartbeat
-from .drc_commands import send_stick_control, set_camera_zoom, take_photo, take_photo_wait, camera_look_at, camera_aim
+from .drc_commands import (
+    send_stick_control,
+    set_camera_zoom,
+    take_photo,
+    take_photo_wait,
+    camera_look_at,
+    camera_aim,
+    drone_emergency_stop,
+    drone_emergency_stop_wait,
+)
 from .connection_manager import DRCConnectionManager, ConnectionState
 
 __all__ = [
@@ -47,6 +56,9 @@ __all__ = [
     'take_photo_wait',
     'camera_look_at',
     'camera_aim',
+    # 飞行器急停
+    'drone_emergency_stop',
+    'drone_emergency_stop_wait',
     'reset_gimbal',
     # DRC 连接设置
     'setup_drc_connection',

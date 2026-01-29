@@ -15,6 +15,25 @@ from rich.console import Console
 
 console = Console()
 
+_SEQ_LOCK = threading.Lock()
+_SEQ_COUNTER = int(time.time() * 1000)
+
+
+def _next_seq() -> int:
+    """
+    生成递增 seq，保证指令顺序性。
+
+    使用毫秒时间戳作为起点，确保全局单调递增。
+    """
+    global _SEQ_COUNTER
+    now = int(time.time() * 1000)
+    with _SEQ_LOCK:
+        if now <= _SEQ_COUNTER:
+            _SEQ_COUNTER += 1
+        else:
+            _SEQ_COUNTER = now
+        return _SEQ_COUNTER
+
 
 def send_stick_control(
     mqtt_client: MQTTClient,
@@ -57,7 +76,7 @@ def send_stick_control(
 
     # 生成 seq
     if seq is None:
-        seq = int(time.time() * 1000)
+        seq = _next_seq()
 
     # 构建消息
     topic = f"thing/product/{mqtt_client.gateway_sn}/drc/down"
@@ -79,6 +98,92 @@ def send_stick_control(
         console.print(f"[red]✗ 杆量控制发送失败: {e}[/red]")
         raise
 
+
+def drone_emergency_stop(
+    mqtt_client: MQTTClient,
+    seq: int | None = None
+) -> int:
+    """
+    DRC 飞行器急停（停止水平运动，Fire-and-forget）
+
+    Args:
+        mqtt_client: MQTT 客户端
+        seq: 序列号（None 则自动生成递增序列）
+
+    Returns:
+        实际使用的 seq
+
+    注意:
+        - 无返回值回包（可用 drone_emergency_stop_wait 监听 drc/up）
+        - 该指令用于运动过程中停止水平运动
+    """
+    if seq is None:
+        seq = _next_seq()
+
+    topic = f"thing/product/{mqtt_client.gateway_sn}/drc/down"
+    payload = {
+        "seq": seq,
+        "method": "drone_emergency_stop",
+        "data": {}
+    }
+
+    try:
+        mqtt_client.client.publish(topic, json.dumps(payload), qos=0)
+        console.print(f"[bright_yellow]⚠ 急停指令已发送 (seq: {seq})[/bright_yellow]")
+    except Exception as e:
+        console.print(f"[red]✗ 急停指令发送失败: {e}[/red]")
+        raise
+
+    return seq
+
+
+def drone_emergency_stop_wait(
+    mqtt_client: MQTTClient,
+    timeout: float = 3.0,
+    seq: int | None = None
+) -> dict:
+    """
+    发送急停指令并等待 drc/up 回包。
+
+    Returns:
+        {'ok': bool, 'result': int | None, 'seq': int}
+    """
+    if not mqtt_client.client:
+        raise RuntimeError("MQTT client is not connected")
+
+    if seq is None:
+        seq = _next_seq()
+
+    result_box: dict = {"result": None}
+    done = threading.Event()
+    original_on_message = mqtt_client.client.on_message
+
+    def on_message(client, userdata, msg):
+        try:
+            payload = json.loads(msg.payload.decode())
+        except Exception:
+            payload = {}
+        if payload.get("method") == "drone_emergency_stop" and payload.get("seq") == seq:
+            data = payload.get("data", {})
+            result_box["result"] = data.get("result")
+            done.set()
+        if original_on_message:
+            original_on_message(client, userdata, msg)
+
+    mqtt_client.client.on_message = on_message
+    try:
+        drone_emergency_stop(mqtt_client, seq=seq)
+        if not done.wait(timeout):
+            raise TimeoutError("drone_emergency_stop timeout")
+    finally:
+        mqtt_client.client.on_message = original_on_message
+
+    result = result_box.get("result")
+    return {
+        "ok": result == 0,
+        "result": result,
+        "seq": seq,
+    }
 
 def set_camera_zoom(
     mqtt_client: MQTTClient,
@@ -126,7 +231,7 @@ def set_camera_zoom(
 
     # 生成 seq
     if seq is None:
-        seq = int(time.time() * 1000)
+        seq = _next_seq()
 
     # 构建消息
     topic = f"thing/product/{mqtt_client.gateway_sn}/drc/down"
@@ -171,7 +276,7 @@ def take_photo(
         raise ValueError("payload_index must be a non-empty string")
 
     if seq is None:
-        seq = int(time.time() * 1000)
+        seq = _next_seq()
 
     topic = f"thing/product/{mqtt_client.gateway_sn}/drc/down"
     payload = {
@@ -206,7 +311,7 @@ def take_photo_wait(
         raise RuntimeError("MQTT client is not connected")
 
     if seq is None:
-        seq = int(time.time() * 1000)
+        seq = _next_seq()
 
     result_box: dict = {"result": None, "status": None}
     done = threading.Event()
@@ -300,7 +405,7 @@ def camera_look_at(
 
     # 生成 seq
     if seq is None:
-        seq = int(time.time() * 1000)
+        seq = _next_seq()
 
     # 构建消息
     topic = f"thing/product/{mqtt_client.gateway_sn}/drc/down"
@@ -385,7 +490,7 @@ def camera_aim(
 
     # 生成 seq
     if seq is None:
-        seq = int(time.time() * 1000)
+        seq = _next_seq()
 
     # 构建消息
     topic = f"thing/product/{mqtt_client.gateway_sn}/drc/down"
