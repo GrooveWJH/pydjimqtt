@@ -16,11 +16,7 @@ sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 from rich.console import Console
 from rich.table import Table
-from rich.prompt import Prompt, Confirm
-from rich.live import Live
-from rich.panel import Panel
-from rich.layout import Layout
-from rich.text import Text
+from rich.prompt import Prompt
 from pydjimqtt import (
     setup_multiple_drc_connections,
     stop_heartbeat,

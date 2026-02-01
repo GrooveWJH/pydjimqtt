@@ -137,7 +137,7 @@ def aim_down_loop():
                 camera_type = s['config']['camera_type']
                 camera_aim(s['mqtt'], s['mqtt'].get_payload_index() or "88-0-0",
                           x=0.5, y=1.0, camera_type=camera_type, locked=False)
-            except:
+            except Exception:
                 pass
         time.sleep(0.1)  # 10Hz
 
@@ -159,7 +159,7 @@ def lookdown_loop():
         for cs, s in uav_states.items():
             try:
                 reset_gimbal(s['mqtt'], s['mqtt'].get_payload_index() or "88-0-0", 1)
-            except:
+            except Exception:
                 pass
         time.sleep(0.02)  # 50Hz
 
@@ -225,7 +225,7 @@ def keyboard_loop():
                 break
             elif ch in KEY_MAP:
                 KEY_MAP[ch]()
-        except:
+        except Exception:
             pass
 
 # ========== 主程序 ==========

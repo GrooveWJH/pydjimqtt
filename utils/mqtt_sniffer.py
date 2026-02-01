@@ -37,13 +37,13 @@ parent_dir = script_dir.parent
 if str(parent_dir) not in sys.path:
     sys.path.insert(0, str(parent_dir))
 
-from rich.console import Console
-from rich.table import Table
-from rich.live import Live
-from rich.panel import Panel
-from rich.columns import Columns
+from rich.console import Console  # noqa: E402
+from rich.table import Table  # noqa: E402
+from rich.live import Live  # noqa: E402
+from rich.panel import Panel  # noqa: E402
+from rich.columns import Columns  # noqa: E402
 # 导入重构后的 pydjimqtt - 使用统一的 DRC 连接函数
-from pydjimqtt import MQTTClient, setup_drc_connection, stop_heartbeat
+from pydjimqtt import MQTTClient, setup_drc_connection, stop_heartbeat  # noqa: E402
 
 # ======== 配置 ========
 MQTT_CONFIG = {'host': '81.70.222.38', 'port': 1883, 'username': 'dji', 'password': 'lab605605'}

@@ -113,7 +113,7 @@ def main():
             client.subscribe(test_topic, qos=1)
 
             # 发布测试消息
-            console.print(f"[cyan]发布测试消息...[/cyan]")
+            console.print("[cyan]发布测试消息...[/cyan]")
             client.publish(test_topic, "Hello from Python MQTT test!", qos=1)
 
             # 等待消息
