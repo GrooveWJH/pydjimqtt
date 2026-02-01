@@ -48,7 +48,7 @@ def _call_service(
             error_msg = result.get('message', result.get('output', {}).get('msg', 'Unknown error'))
 
             # 打印详细错误信息（仅针对错误情况）
-            console.print(f"[red]✗ 服务调用失败:[/red]")
+            console.print("[red]✗ 服务调用失败:[/red]")
             console.print(f"  [yellow]方法:[/yellow] {method}")
             console.print(f"  [yellow]错误码:[/yellow] {error_code}")
             console.print(f"  [yellow]错误信息:[/yellow] {error_msg}")
@@ -193,7 +193,7 @@ def start_live_push(
     video_quality: int = 0
 ) -> Dict[str, Any]:
     """开始直播推流 (url_type: 0-RTMP, 1-RTSP, 2-GB28181)"""
-    console.print(f"[bold cyan]开始直播推流...[/bold cyan]")
+    console.print("[bold cyan]开始直播推流...[/bold cyan]")
     console.print(f"[dim]URL: {url}[/dim]")
     console.print(f"[dim]镜头: {video_id}[/dim]")
     return _call_service(

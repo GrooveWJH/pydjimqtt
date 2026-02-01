@@ -12,7 +12,6 @@ from .commands import (
     stop_live_push,
     return_home,
     fly_to_point,
-    send_stick_control,
     reset_gimbal,
     setup_drc_connection,
     setup_multiple_drc_connections,

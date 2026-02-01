@@ -4,11 +4,17 @@
 提供可复用的 Rich 表格生成函数，用于实时监控多无人机任务执行状态。
 这些函数设计为通用工具，可在任何需要显示任务进度的应用中使用。
 """
-from typing import List, Dict, Any
+from __future__ import annotations
+
+from typing import Any, Dict, List, TYPE_CHECKING
 from rich.table import Table
 
 
-def create_takeoff_table(runners: List['MissionRunner']) -> Table:
+if TYPE_CHECKING:
+    from .runner import MissionRunner
+
+
+def create_takeoff_table(runners: List[MissionRunner]) -> Table:
     """
     创建起飞状态监控表格
 
@@ -68,7 +74,7 @@ def create_takeoff_table(runners: List['MissionRunner']) -> Table:
     return table
 
 
-def create_trajectory_table(runners: List['MissionRunner'], mission_state: Dict[str, Any]) -> Table:
+def create_trajectory_table(runners: List[MissionRunner], mission_state: Dict[str, Any]) -> Table:
     """
     创建轨迹飞行进度监控表格
 

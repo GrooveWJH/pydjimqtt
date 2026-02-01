@@ -6,10 +6,9 @@ DJI SDK 直播相关高级工具
 - 键盘变焦控制循环
 """
 import time
-import json
 import threading
 import uuid
-from typing import Optional, Dict, Any
+from typing import Optional
 from rich.console import Console
 from .utils import print_json_message, get_key
 from .services.drc_commands import set_camera_zoom
@@ -103,7 +102,7 @@ def start_live(
         else:
             error_code = result.get('result', 'unknown')
             error_msg = result.get('message', '无错误信息')
-            console.print(f"\n[bold red]✗ 直播推流失败[/bold red]")
+            console.print("\n[bold red]✗ 直播推流失败[/bold red]")
             console.print(f"[red]错误码: {error_code}[/red]")
             console.print(f"[red]错误信息: {error_msg}[/red]")
             return None
@@ -176,7 +175,7 @@ def stop_live(caller, video_id: str) -> bool:
         else:
             error_code = result.get('result', 'unknown')
             error_msg = result.get('message', '无错误信息')
-            console.print(f"\n[bold red]✗ 停止直播失败[/bold red]")
+            console.print("\n[bold red]✗ 停止直播失败[/bold red]")
             console.print(f"[red]错误码: {error_code}[/red]")
             console.print(f"[red]错误信息: {error_msg}[/red]")
             return False
@@ -262,7 +261,7 @@ def set_live_quality(caller, video_id: str, video_quality: int) -> bool:
         else:
             error_code = result.get('result', 'unknown')
             error_msg = result.get('message', '无错误信息')
-            console.print(f"\n[bold red]✗ 设置清晰度失败[/bold red]")
+            console.print("\n[bold red]✗ 设置清晰度失败[/bold red]")
             console.print(f"[red]错误码: {error_code}[/red]")
             console.print(f"[red]错误信息: {error_msg}[/red]")
             return False

@@ -12,7 +12,7 @@ import json
 import tempfile
 import shutil
 from pathlib import Path
-from typing import List, Dict, Any, Optional
+from typing import List, Dict, Any
 from rich.console import Console
 
 from ..services import fly_to_point, reset_gimbal, set_camera_zoom, change_live_lens
@@ -202,7 +202,7 @@ def fly_trajectory_sequence(
 
         # 监控飞行进度（实时打印距离、时间等信息）
         if show_progress:
-            console.print(f"[dim]监控飞行进度（实时显示）...[/dim]\n")
+            console.print("[dim]监控飞行进度（实时显示）...[/dim]\n")
 
         for runner in runners:
             mqtt = runner.mqtt

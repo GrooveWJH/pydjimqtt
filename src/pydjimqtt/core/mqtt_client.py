@@ -524,11 +524,11 @@ class MQTTClient:
             # 🔍 DEBUG: 打印完整的服务响应（仅在启用时）
             if self.enable_service_debug:
                 method = payload.get('method', 'unknown')
-                console.print(f"[bright_yellow]📦 MQTT 服务响应 DEBUG[/bright_yellow]")
+                console.print("[bright_yellow]📦 MQTT 服务响应 DEBUG[/bright_yellow]")
                 console.print(f"  [cyan]Topic:[/cyan] {msg.topic}")
                 console.print(f"  [cyan]TID:[/cyan] {tid[:8]}...")
                 console.print(f"  [cyan]Method:[/cyan] {method}")
-                console.print(f"  [cyan]完整 Payload:[/cyan]")
+                console.print("  [cyan]完整 Payload:[/cyan]")
                 console.print(f"{json.dumps(payload, indent=2, ensure_ascii=False)}")
 
             with self.lock:
