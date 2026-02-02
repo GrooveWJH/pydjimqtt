@@ -160,6 +160,7 @@ class ControlsWidget(Static):
         table.add_row("空格", "上升 (半杆量)")
         table.add_row("Shift", "下降 (满杆量)")
         table.add_row("K", "外八解锁")
+        table.add_row("B", "急停")
         table.add_row("P", "暂停/恢复")
         table.add_row("Ctrl+C", "退出")
 
@@ -201,24 +202,21 @@ class JoystickApp(App):
     }
 
     #window_container {
-        width: 90%;
-        height: 90%;
-        border: round cyan;
+        width: 92%;
+        height: 92%;
         padding: 1 2;
     }
 
     #window_title {
         height: 3;
         width: 100%;
-        border: solid cyan;
         content-align: center middle;
         margin-bottom: 1;
     }
 
     #joysticks_section {
         height: auto;
-        border: solid green;
-        padding: 1;
+        padding: 0;
         margin-bottom: 1;
     }
 
@@ -228,15 +226,13 @@ class JoystickApp(App):
 
     #controls_section {
         height: auto;
-        border: solid yellow;
-        padding: 1;
+        padding: 0;
         margin-bottom: 1;
     }
 
     #status_section {
         height: auto;
-        border: solid magenta;
-        padding: 1;
+        padding: 0;
     }
 
     JoystickWidget {
@@ -280,15 +276,24 @@ class JoystickApp(App):
     _shift_pressed = False  # Shift 键状态
     _keyboard_listener = None  # pynput 监听器
 
-    def __init__(self, scale: float = 1.0, on_stick_update=None, update_interval=0.05, **kwargs):
+    def __init__(
+        self,
+        scale: float = 1.0,
+        on_stick_update=None,
+        on_emergency_stop=None,
+        update_interval=0.05,
+        **kwargs,
+    ):
         super().__init__(**kwargs)
         self.scale = scale
         self.on_stick_update = on_stick_update  # 可选回调：当摇杆值更新时调用
+        self.on_emergency_stop = on_emergency_stop  # 可选回调：触发急停
         self.update_interval = update_interval  # 更新间隔（秒）
         self._pressed_keys_state = set()
         self._state_lock = threading.Lock()
         self._shift_pressed = False
         self._keyboard_listener = None
+        self._emergency_stop_armed = False
 
     def compose(self) -> ComposeResult:
         """组合 UI 组件 - 窗口风格布局"""
@@ -393,6 +398,12 @@ class JoystickApp(App):
         """pynput 按键按下事件（后台线程）"""
         key_char, is_shift = self._normalize_key(key)
 
+        if key_char == 'b':
+            if self.on_emergency_stop and not self.paused and not self._emergency_stop_armed:
+                self._emergency_stop_armed = True
+                self.call_from_thread(self.on_emergency_stop)
+            return
+
         with self._state_lock:
             if key_char:
                 self._pressed_keys_state.add(key_char)
@@ -408,6 +419,10 @@ class JoystickApp(App):
     def _on_key_release(self, key):
         """pynput 按键释放事件（后台线程）- 零延迟"""
         key_char, is_shift = self._normalize_key(key)
+
+        if key_char == 'b':
+            self._emergency_stop_armed = False
+            return
 
         with self._state_lock:
             if key_char:
