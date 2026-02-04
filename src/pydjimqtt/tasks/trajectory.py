@@ -7,6 +7,7 @@
 - 实时监控飞行进度
 - 航点间悬停稳定
 """
+
 import time
 import json
 import tempfile
@@ -22,7 +23,7 @@ from .runner import MissionRunner
 console = Console()
 
 # 任务状态文件路径（进程间共享）
-MISSION_STATE_FILE = Path('/tmp/pydjimqtt_mission_state.json')
+MISSION_STATE_FILE = Path("/tmp/pydjimqtt_mission_state.json")
 
 
 def _update_mission_state_file(runner: MissionRunner, wp_index: int, task_status: str):
@@ -40,25 +41,27 @@ def _update_mission_state_file(runner: MissionRunner, wp_index: int, task_status
         - Dashboard 通过读取此文件显示任务进度
     """
     try:
-        callsign = runner.config.get('callsign', 'UAV')
+        callsign = runner.config.get("callsign", "UAV")
 
         # 读取现有文件（保留其他无人机数据）
         mission_state = {}
         if MISSION_STATE_FILE.exists():
-            with open(MISSION_STATE_FILE, 'r') as f:
+            with open(MISSION_STATE_FILE, "r") as f:
                 mission_state = json.load(f)
 
         # 更新当前无人机数据
         mission_state[callsign] = {
-            'current_waypoint': wp_index,
-            'total_waypoints': runner.data.get('total_waypoints', 0),
-            'task_status': task_status,
-            'timestamp': time.time(),
-            'trajectory_file': runner.config.get('trajectory_file', '')
+            "current_waypoint": wp_index,
+            "total_waypoints": runner.data.get("total_waypoints", 0),
+            "task_status": task_status,
+            "timestamp": time.time(),
+            "trajectory_file": runner.config.get("trajectory_file", ""),
         }
 
         # 原子写入（先写临时文件，再重命名）
-        with tempfile.NamedTemporaryFile(mode='w', delete=False, dir='/tmp', prefix='pydjimqtt_mission_') as tmp_file:
+        with tempfile.NamedTemporaryFile(
+            mode="w", delete=False, dir="/tmp", prefix="pydjimqtt_mission_"
+        ) as tmp_file:
             json.dump(mission_state, tmp_file, indent=2)
             tmp_path = tmp_file.name
 
@@ -96,7 +99,7 @@ def load_trajectory(filepath: str) -> List[Dict[str, Any]]:
     if not path.exists():
         raise FileNotFoundError(f"航点文件不存在: {filepath}")
 
-    with open(path, 'r', encoding='utf-8') as f:
+    with open(path, "r", encoding="utf-8") as f:
         waypoints = json.load(f)
 
     if not isinstance(waypoints, list) or len(waypoints) == 0:
@@ -104,8 +107,8 @@ def load_trajectory(filepath: str) -> List[Dict[str, Any]]:
 
     # 验证航点数据格式
     for i, wp in enumerate(waypoints):
-        if 'lat' not in wp or 'lon' not in wp:
-            raise ValueError(f"航点 {i+1} 缺少 lat 或 lon 字段: {wp}")
+        if "lat" not in wp or "lon" not in wp:
+            raise ValueError(f"航点 {i + 1} 缺少 lat 或 lon 字段: {wp}")
 
     return waypoints
 
@@ -117,7 +120,7 @@ def fly_trajectory_sequence(
     max_speed: int = 12,
     hover_between_waypoints: float = 5.0,
     show_progress: bool = True,
-    debug: bool = False
+    debug: bool = False,
 ) -> bool:
     """
     依次飞向多个航点（所有无人机并行执行相同轨迹）
@@ -152,51 +155,61 @@ def fly_trajectory_sequence(
     for wp_index, waypoint in enumerate(waypoints, 1):
         if _should_abort():
             for r in runners:
-                _update_mission_state_file(r, wp_index - 1, '已取消')
+                _update_mission_state_file(r, wp_index - 1, "已取消")
             return False
-        wp_id = waypoint.get('id', wp_index)
-        lat = waypoint['lat']
-        lon = waypoint['lon']
+        wp_id = waypoint.get("id", wp_index)
+        lat = waypoint["lat"]
+        lon = waypoint["lon"]
 
         # 更新所有 runner 的当前航点索引（供外部监控和 dashboard 显示）
         for runner in runners:
-            runner.data['current_waypoint'] = wp_index
+            runner.data["current_waypoint"] = wp_index
             # ✅ 立即写入文件（Dashboard 通过文件读取任务进度）
-            _update_mission_state_file(runner, wp_index, '飞行中')
+            _update_mission_state_file(runner, wp_index, "飞行中")
 
         if show_progress:
             console.print(
-                f"\n[bold bright_cyan]━━━ 航点 {wp_index}/{total_waypoints} (ID: {wp_id}) ━━━[/bold bright_cyan]")
+                f"\n[bold bright_cyan]━━━ 航点 {wp_index}/{total_waypoints} (ID: {wp_id}) ━━━[/bold bright_cyan]"
+            )
             console.print(
-                f"[bright_yellow]目标: lat={lat:.7f}, lon={lon:.7f}, h={height:.1f}m[/bright_yellow]")
+                f"[bright_yellow]目标: lat={lat:.7f}, lon={lon:.7f}, h={height:.1f}m[/bright_yellow]"
+            )
 
         # 发送 Fly-to 指令到所有无人机，并记录 fly_to_id
         fly_to_ids = {}  # {callsign: fly_to_id}
         for runner in runners:
             if _should_abort():
                 for r in runners:
-                    _update_mission_state_file(r, wp_index - 1, '已取消')
+                    _update_mission_state_file(r, wp_index - 1, "已取消")
                 return False
 
             caller = runner.caller
-            callsign = runner.config.get('callsign', 'UAV')
+            callsign = runner.config.get("callsign", "UAV")
             if show_progress:
-                console.print(f"[bright_cyan][{callsign}] 飞向航点 {wp_index}...[/bright_cyan]")
+                console.print(
+                    f"[bright_cyan][{callsign}] 飞向航点 {wp_index}...[/bright_cyan]"
+                )
 
             try:
                 fly_to_id = fly_to_point(
-                    caller, latitude=lat, longitude=lon, height=height, max_speed=max_speed
+                    caller,
+                    latitude=lat,
+                    longitude=lon,
+                    height=height,
+                    max_speed=max_speed,
                 )
                 fly_to_ids[callsign] = fly_to_id
             except Exception as e:
                 # service call 失败，立即终止整个轨迹任务
-                console.print(f"\n[bold bright_red]✗ [{callsign}] Fly-to service 调用失败，终止轨迹任务[/bold bright_red]")
+                console.print(
+                    f"\n[bold bright_red]✗ [{callsign}] Fly-to service 调用失败，终止轨迹任务[/bold bright_red]"
+                )
                 console.print(f"[yellow]   航点: {wp_index}/{total_waypoints}[/yellow]")
                 console.print(f"[yellow]   异常: {e}[/yellow]")
 
                 # 更新失败状态到文件
                 for r in runners:
-                    _update_mission_state_file(r, wp_index, f'失败(航点{wp_index})')
+                    _update_mission_state_file(r, wp_index, f"失败(航点{wp_index})")
 
                 return False  # 立即返回失败
 
@@ -206,12 +219,14 @@ def fly_trajectory_sequence(
 
         for runner in runners:
             mqtt = runner.mqtt
-            callsign = runner.config.get('callsign', 'UAV')
+            callsign = runner.config.get("callsign", "UAV")
 
             # 跳过 service call 失败的无人机（用缺失 key 判断，不用 None）
             if callsign not in fly_to_ids:
                 if show_progress:
-                    console.print(f"[dim][{callsign}] 跳过监控（service call 失败）[/dim]")
+                    console.print(
+                        f"[dim][{callsign}] 跳过监控（service call 失败）[/dim]"
+                    )
                 continue
 
             fly_to_id = fly_to_ids[callsign]
@@ -219,17 +234,19 @@ def fly_trajectory_sequence(
             # 实时监控飞行进度（自己实现循环，打印实时信息）
             try:
                 if debug:
-                    console.print(f"[dim]🐛 [{callsign}] 等待 fly_to_id={fly_to_id[:8]}... 的事件[/dim]")
+                    console.print(
+                        f"[dim]🐛 [{callsign}] 等待 fly_to_id={fly_to_id[:8]}... 的事件[/dim]"
+                    )
 
                 start_time = time.time()
-                terminal_statuses = {'wayline_ok', 'wayline_failed', 'wayline_cancel'}
+                terminal_statuses = {"wayline_ok", "wayline_failed", "wayline_cancel"}
                 last_print_time = 0
                 print_interval = 1.0  # 每秒打印一次进度
 
                 while True:
                     if not runner.running:
                         all_success = False
-                        _update_mission_state_file(runner, wp_index, '已取消')
+                        _update_mission_state_file(runner, wp_index, "已取消")
                         break
 
                     elapsed = time.time() - start_time
@@ -240,8 +257,8 @@ def fly_trajectory_sequence(
 
                     # 读取最新飞行进度数据
                     progress = mqtt.get_flyto_progress()
-                    event_fly_to_id = progress.get('fly_to_id')
-                    status = progress.get('status')
+                    event_fly_to_id = progress.get("fly_to_id")
+                    status = progress.get("status")
 
                     # ✅ 关键检查：fly_to_id 必须匹配（防止读取旧航点数据）
                     if event_fly_to_id == fly_to_id:
@@ -249,22 +266,30 @@ def fly_trajectory_sequence(
 
                         # 实时打印飞行信息（每秒一次）
                         current_time = time.time()
-                        if status == 'wayline_progress' and show_progress:
+                        if status == "wayline_progress" and show_progress:
                             if current_time - last_print_time >= print_interval:
-                                remaining_distance = progress.get('remaining_distance')
-                                remaining_time = progress.get('remaining_time')
-                                way_point_index = progress.get('way_point_index')
+                                remaining_distance = progress.get("remaining_distance")
+                                remaining_time = progress.get("remaining_time")
+                                way_point_index = progress.get("way_point_index")
 
                                 # 构建进度信息字符串
                                 info_parts = []
                                 if remaining_distance is not None:
-                                    info_parts.append(f"剩余距离: {remaining_distance:.1f}m")
+                                    info_parts.append(
+                                        f"剩余距离: {remaining_distance:.1f}m"
+                                    )
                                 if remaining_time is not None:
-                                    info_parts.append(f"剩余时间: {remaining_time:.1f}s")
+                                    info_parts.append(
+                                        f"剩余时间: {remaining_time:.1f}s"
+                                    )
                                 if way_point_index is not None:
                                     info_parts.append(f"航点索引: {way_point_index}")
 
-                                info_str = " | ".join(info_parts) if info_parts else "飞行中..."
+                                info_str = (
+                                    " | ".join(info_parts)
+                                    if info_parts
+                                    else "飞行中..."
+                                )
 
                                 console.print(
                                     f"[bright_cyan]→ [{callsign}] 飞向航点 {wp_index}: {info_str}[/bright_cyan]"
@@ -273,30 +298,36 @@ def fly_trajectory_sequence(
 
                         # 调试：打印完整事件数据
                         if debug and status in terminal_statuses:
-                            console.print(f"[dim]🐛 [{callsign}] 收到终止事件: {progress}[/dim]")
+                            console.print(
+                                f"[dim]🐛 [{callsign}] 收到终止事件: {progress}[/dim]"
+                            )
 
                         # 检查是否到达终止状态
                         if status in terminal_statuses:
-                            result_code = progress.get('result')
+                            result_code = progress.get("result")
 
-                            if status == 'wayline_ok':
+                            if status == "wayline_ok":
                                 if show_progress:
                                     console.print(
                                         f"[bold bright_green]✓ [{callsign}] 已到达航点 {wp_index}！[/bold bright_green]"
                                     )
-                            elif status == 'wayline_failed':
+                            elif status == "wayline_failed":
                                 if show_progress:
                                     console.print(
                                         f"[bold bright_red]✗ [{callsign}] 飞向航点 {wp_index} 失败[/bold bright_red]"
                                     )
-                                    console.print(f"[dim]   result_code: {result_code}[/dim]")
+                                    console.print(
+                                        f"[dim]   result_code: {result_code}[/dim]"
+                                    )
                                 all_success = False
-                            elif status == 'wayline_cancel':
+                            elif status == "wayline_cancel":
                                 if show_progress:
                                     console.print(
                                         f"[bold bright_yellow]⚠ [{callsign}] 飞向航点 {wp_index} 取消[/bold bright_yellow]"
                                     )
-                                    console.print(f"[dim]   result_code: {result_code}[/dim]")
+                                    console.print(
+                                        f"[dim]   result_code: {result_code}[/dim]"
+                                    )
                                 all_success = False
 
                             # 到达终止状态，退出循环
@@ -306,36 +337,43 @@ def fly_trajectory_sequence(
                     time.sleep(0.1)
 
             except TimeoutError as e:
-                console.print(f"[bold bright_red]✗ [{callsign}] 航点 {wp_index} 超时[/bold bright_red]")
+                console.print(
+                    f"[bold bright_red]✗ [{callsign}] 航点 {wp_index} 超时[/bold bright_red]"
+                )
                 console.print(f"[dim]   {e}[/dim]")
                 all_success = False
             except Exception as e:
-                console.print(f"[bold bright_red]✗ [{callsign}] 航点 {wp_index} 异常[/bold bright_red]")
+                console.print(
+                    f"[bold bright_red]✗ [{callsign}] 航点 {wp_index} 异常[/bold bright_red]"
+                )
                 console.print(f"[dim]   {e}[/dim]")
                 all_success = False
 
         if show_progress:
             console.print(
-                f"[bold bright_green]✓ 航点 {wp_index}/{total_waypoints} 飞行完成[/bold bright_green]")
+                f"[bold bright_green]✓ 航点 {wp_index}/{total_waypoints} 飞行完成[/bold bright_green]"
+            )
 
         # 航点间等待（除了最后一个航点）
         if wp_index < total_waypoints and hover_between_waypoints > 0:
             if _should_abort():
                 for r in runners:
-                    _update_mission_state_file(r, wp_index, '已取消')
+                    _update_mission_state_file(r, wp_index, "已取消")
                 return False
 
             if show_progress:
                 console.print(
-                    f"[bright_cyan]━━━ 航点 {wp_index} 悬停操作 ━━━[/bright_cyan]")
+                    f"[bright_cyan]━━━ 航点 {wp_index} 悬停操作 ━━━[/bright_cyan]"
+                )
                 console.print(
-                    f"[bright_yellow]悬停 {hover_between_waypoints:.1f} 秒，切换zoom镜头 + 云台朝下 + 变焦3倍[/bright_yellow]")
+                    f"[bright_yellow]悬停 {hover_between_waypoints:.1f} 秒，切换zoom镜头 + 云台朝下 + 变焦3倍[/bright_yellow]"
+                )
 
             # 所有无人机：切换zoom镜头 + 云台朝下 + 变焦3倍
             for runner in runners:
                 mqtt = runner.mqtt
                 caller = runner.caller
-                callsign = runner.config.get('callsign', 'UAV')
+                callsign = runner.config.get("callsign", "UAV")
 
                 # 跳过之前失败的无人机
                 if callsign not in fly_to_ids:
@@ -348,32 +386,47 @@ def fly_trajectory_sequence(
                     try:
                         video_id = build_video_id(mqtt, video_index="zoom-0")
                         if show_progress:
-                            console.print(f"[bright_cyan][{callsign}] 切换到zoom镜头...[/bright_cyan]")
+                            console.print(
+                                f"[bright_cyan][{callsign}] 切换到zoom镜头...[/bright_cyan]"
+                            )
                         change_live_lens(caller, video_id=video_id, video_type="zoom")
                     except Exception as e:
                         if show_progress:
-                            console.print(f"[bright_yellow]⚠ [{callsign}] 切换镜头失败: {e}[/bright_yellow]")
+                            console.print(
+                                f"[bright_yellow]⚠ [{callsign}] 切换镜头失败: {e}[/bright_yellow]"
+                            )
 
                     # 2. 云台朝下（reset_mode=1: yaw回中、pitch向下）
                     if show_progress:
-                        console.print(f"[bright_cyan][{callsign}] 云台朝下...[/bright_cyan]")
+                        console.print(
+                            f"[bright_cyan][{callsign}] 云台朝下...[/bright_cyan]"
+                        )
                     reset_gimbal(mqtt, payload_index=payload_index, reset_mode=1)
 
                     # 3. 变焦3倍
                     if show_progress:
-                        console.print(f"[bright_cyan][{callsign}] 变焦3倍...[/bright_cyan]")
-                    set_camera_zoom(mqtt, payload_index=payload_index, zoom_factor=3.0, camera_type="zoom")
+                        console.print(
+                            f"[bright_cyan][{callsign}] 变焦3倍...[/bright_cyan]"
+                        )
+                    set_camera_zoom(
+                        mqtt,
+                        payload_index=payload_index,
+                        zoom_factor=3.0,
+                        camera_type="zoom",
+                    )
 
                 except Exception as e:
                     if show_progress:
-                        console.print(f"[bright_yellow]⚠ [{callsign}] 云台/变焦控制失败: {e}[/bright_yellow]")
+                        console.print(
+                            f"[bright_yellow]⚠ [{callsign}] 云台/变焦控制失败: {e}[/bright_yellow]"
+                        )
 
             # 悬停等待（fly_to_point 后飞机会自动悬停）
             time.sleep(hover_between_waypoints)
 
     # ✅ 任务完成，更新最终状态
     for runner in runners:
-        final_status = f'完成 ({total_waypoints}航点)' if all_success else '任务失败'
+        final_status = f"完成 ({total_waypoints}航点)" if all_success else "任务失败"
         _update_mission_state_file(runner, total_waypoints, final_status)
 
     return all_success
@@ -385,7 +438,7 @@ def create_trajectory_mission(
     max_speed: int = 12,
     hover_between_waypoints: float = 5.0,
     show_progress: bool = True,
-    debug: bool = False
+    debug: bool = False,
 ):
     """
     创建轨迹飞行任务函数（用于 run_parallel_missions）
@@ -408,6 +461,7 @@ def create_trajectory_mission(
         >>> mission = create_trajectory_mission(waypoints, height=100.0, debug=True)
         >>> runners = run_parallel_missions(connections, mission, uav_configs)
     """
+
     def trajectory_mission(runner: MissionRunner):
         """执行轨迹飞行任务"""
         # 单个无人机的轨迹飞行
@@ -418,7 +472,7 @@ def create_trajectory_mission(
             max_speed=max_speed,
             hover_between_waypoints=hover_between_waypoints,
             show_progress=show_progress,
-            debug=debug
+            debug=debug,
         )
 
         if not success:

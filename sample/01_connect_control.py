@@ -1,4 +1,9 @@
-from pydjimqtt import MQTTClient, ServiceCaller, request_control_auth, release_control_auth
+from pydjimqtt import (
+    MQTTClient,
+    ServiceCaller,
+    request_control_auth,
+    release_control_auth,
+)
 
 
 MQTT_CONFIG = {

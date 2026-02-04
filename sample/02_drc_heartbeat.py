@@ -39,7 +39,9 @@ def main() -> None:
             "enable_tls": False,
         }
 
-        enter_drc_mode(caller, mqtt_broker=mqtt_broker, osd_frequency=100, hsi_frequency=10)
+        enter_drc_mode(
+            caller, mqtt_broker=mqtt_broker, osd_frequency=100, hsi_frequency=10
+        )
         heartbeat_thread = start_heartbeat(mqtt, interval=0.2)
 
         print("DRC active. Press Ctrl+C to exit.")

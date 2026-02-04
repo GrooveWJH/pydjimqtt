@@ -7,6 +7,7 @@ DRC 无回包指令（Fire-and-forget 模式）
 - 使用 seq 序列号（而非 tid）
 - 调用方负责控制发送频率
 """
+
 import json
 import time
 import threading
@@ -41,7 +42,7 @@ def send_stick_control(
     pitch: int = 1024,
     throttle: int = 1024,
     yaw: int = 1024,
-    seq: int | None = None
+    seq: int | None = None,
 ) -> None:
     """
     发送 DRC 杆量控制指令（单次发送，调用方控制频率）
@@ -69,7 +70,12 @@ def send_stick_control(
         ...     time.sleep(0.1)  # 10Hz
     """
     # 参数校验
-    for name, value in [("roll", roll), ("pitch", pitch), ("throttle", throttle), ("yaw", yaw)]:
+    for name, value in [
+        ("roll", roll),
+        ("pitch", pitch),
+        ("throttle", throttle),
+        ("yaw", yaw),
+    ]:
         if not 364 <= value <= 1684:
             console.print(f"[red]✗ {name} 超出范围: {value} (应在 364-1684)[/red]")
             raise ValueError(f"{name} must be in range [364, 1684], got {value}")
@@ -83,12 +89,7 @@ def send_stick_control(
     payload = {
         "seq": seq,
         "method": "stick_control",
-        "data": {
-            "roll": roll,
-            "pitch": pitch,
-            "throttle": throttle,
-            "yaw": yaw
-        }
+        "data": {"roll": roll, "pitch": pitch, "throttle": throttle, "yaw": yaw},
     }
 
     # 发送（QoS 0，无响应）
@@ -99,10 +100,7 @@ def send_stick_control(
         raise
 
 
-def drone_emergency_stop(
-    mqtt_client: MQTTClient,
-    seq: int | None = None
-) -> int:
+def drone_emergency_stop(mqtt_client: MQTTClient, seq: int | None = None) -> int:
     """
     DRC 飞行器急停（停止水平运动，Fire-and-forget）
 
@@ -121,11 +119,7 @@ def drone_emergency_stop(
         seq = _next_seq()
 
     topic = f"thing/product/{mqtt_client.gateway_sn}/drc/down"
-    payload = {
-        "seq": seq,
-        "method": "drone_emergency_stop",
-        "data": {}
-    }
+    payload = {"seq": seq, "method": "drone_emergency_stop", "data": {}}
 
     try:
         mqtt_client.client.publish(topic, json.dumps(payload), qos=0)
@@ -138,9 +132,7 @@ def drone_emergency_stop(
 
 
 def drone_emergency_stop_wait(
-    mqtt_client: MQTTClient,
-    timeout: float = 3.0,
-    seq: int | None = None
+    mqtt_client: MQTTClient, timeout: float = 3.0, seq: int | None = None
 ) -> dict:
     """
     发送急停指令并等待 drc/up 回包。
@@ -163,7 +155,10 @@ def drone_emergency_stop_wait(
             payload = json.loads(msg.payload.decode())
         except Exception:
             payload = {}
-        if payload.get("method") == "drone_emergency_stop" and payload.get("seq") == seq:
+        if (
+            payload.get("method") == "drone_emergency_stop"
+            and payload.get("seq") == seq
+        ):
             data = payload.get("data", {})
             result_box["result"] = data.get("result")
             done.set()
@@ -185,12 +180,13 @@ def drone_emergency_stop_wait(
         "seq": seq,
     }
 
+
 def set_camera_zoom(
     mqtt_client: MQTTClient,
     payload_index: str,
     zoom_factor: float,
     camera_type: str = "zoom",
-    seq: int | None = None
+    seq: int | None = None,
 ) -> None:
     """
     发送相机变焦控制指令（单次发送，Fire-and-forget）
@@ -216,18 +212,30 @@ def set_camera_zoom(
     """
     # 参数校验
     if camera_type not in ["ir", "wide", "zoom"]:
-        console.print(f"[red]✗ 无效的相机类型: {camera_type} (应为 'ir', 'wide', 或 'zoom')[/red]")
-        raise ValueError(f"camera_type must be one of ['ir', 'wide', 'zoom'], got {camera_type}")
+        console.print(
+            f"[red]✗ 无效的相机类型: {camera_type} (应为 'ir', 'wide', 或 'zoom')[/red]"
+        )
+        raise ValueError(
+            f"camera_type must be one of ['ir', 'wide', 'zoom'], got {camera_type}"
+        )
 
     # 变焦倍数范围检查
     if camera_type == "ir":
         if not 2 <= zoom_factor <= 20:
-            console.print(f"[red]✗ 红外相机变焦倍数超出范围: {zoom_factor} (应在 2-20)[/red]")
-            raise ValueError(f"For IR camera, zoom_factor must be in range [2, 20], got {zoom_factor}")
+            console.print(
+                f"[red]✗ 红外相机变焦倍数超出范围: {zoom_factor} (应在 2-20)[/red]"
+            )
+            raise ValueError(
+                f"For IR camera, zoom_factor must be in range [2, 20], got {zoom_factor}"
+            )
     else:  # zoom 或 wide
         if not 1 <= zoom_factor <= 112:
-            console.print(f"[red]✗ 可见光相机变焦倍数超出范围: {zoom_factor} (应在 1-112)[/red]")
-            raise ValueError(f"For visible camera, zoom_factor must be in range [1, 112], got {zoom_factor}")
+            console.print(
+                f"[red]✗ 可见光相机变焦倍数超出范围: {zoom_factor} (应在 1-112)[/red]"
+            )
+            raise ValueError(
+                f"For visible camera, zoom_factor must be in range [1, 112], got {zoom_factor}"
+            )
 
     # 生成 seq
     if seq is None:
@@ -241,23 +249,23 @@ def set_camera_zoom(
         "data": {
             "payload_index": payload_index,
             "camera_type": camera_type,
-            "zoom_factor": zoom_factor
-        }
+            "zoom_factor": zoom_factor,
+        },
     }
 
     # 发送（QoS 0，无响应）
     try:
         mqtt_client.client.publish(topic, json.dumps(payload), qos=0)
-        console.print(f"[cyan]→[/cyan] 变焦指令已发送: {camera_type} zoom={zoom_factor}x (payload: {payload_index})")
+        console.print(
+            f"[cyan]→[/cyan] 变焦指令已发送: {camera_type} zoom={zoom_factor}x (payload: {payload_index})"
+        )
     except Exception as e:
         console.print(f"[red]✗ 变焦控制发送失败: {e}[/red]")
         raise
 
 
 def take_photo(
-    mqtt_client: MQTTClient,
-    payload_index: str,
-    seq: int | None = None
+    mqtt_client: MQTTClient, payload_index: str, seq: int | None = None
 ) -> None:
     """
     发送拍照指令（单次发送，Fire-and-forget）
@@ -282,9 +290,7 @@ def take_photo(
     payload = {
         "seq": seq,
         "method": "drc_camera_photo_take",
-        "data": {
-            "payload_index": payload_index
-        }
+        "data": {"payload_index": payload_index},
     }
 
     try:
@@ -299,7 +305,7 @@ def take_photo_wait(
     mqtt_client: MQTTClient,
     payload_index: str,
     timeout: float = 10.0,
-    seq: int | None = None
+    seq: int | None = None,
 ) -> dict:
     """
     发送拍照指令并等待结果回包。
@@ -322,7 +328,10 @@ def take_photo_wait(
             payload = json.loads(msg.payload.decode())
         except Exception:
             payload = {}
-        if payload.get("method") == "drc_camera_photo_take" and payload.get("seq") == seq:
+        if (
+            payload.get("method") == "drc_camera_photo_take"
+            and payload.get("seq") == seq
+        ):
             data = payload.get("data", {})
             result_box["result"] = data.get("result")
             result_box["status"] = data.get("status")
@@ -354,7 +363,7 @@ def camera_look_at(
     longitude: float,
     height: float,
     locked: bool = False,
-    seq: int | None = None
+    seq: int | None = None,
 ) -> None:
     """
     发送相机 Look At 指令（云台指向目标点，Fire-and-forget）
@@ -417,8 +426,8 @@ def camera_look_at(
             "locked": locked,
             "latitude": latitude,
             "longitude": longitude,
-            "height": height
-        }
+            "height": height,
+        },
     }
 
     # 发送（QoS 0，无响应）
@@ -441,7 +450,7 @@ def camera_aim(
     y: float,
     camera_type: str = "zoom",
     locked: bool = False,
-    seq: int | None = None
+    seq: int | None = None,
 ) -> None:
     """
     发送相机 AIM 指令（双击镜头目标点，使其成为视野中心，Fire-and-forget）
@@ -485,8 +494,12 @@ def camera_aim(
         raise ValueError(f"y must be in range [0, 1], got {y}")
 
     if camera_type not in ["ir", "wide", "zoom"]:
-        console.print(f"[red]✗ 无效的相机类型: {camera_type} (应为 'ir', 'wide', 或 'zoom')[/red]")
-        raise ValueError(f"camera_type must be one of ['ir', 'wide', 'zoom'], got {camera_type}")
+        console.print(
+            f"[red]✗ 无效的相机类型: {camera_type} (应为 'ir', 'wide', 或 'zoom')[/red]"
+        )
+        raise ValueError(
+            f"camera_type must be one of ['ir', 'wide', 'zoom'], got {camera_type}"
+        )
 
     # 生成 seq
     if seq is None:
@@ -502,8 +515,8 @@ def camera_aim(
             "camera_type": camera_type,
             "locked": locked,
             "x": x,
-            "y": y
-        }
+            "y": y,
+        },
     }
 
     # 发送（QoS 0，无响应）

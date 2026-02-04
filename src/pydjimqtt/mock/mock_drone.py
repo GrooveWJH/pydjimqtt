@@ -4,6 +4,7 @@
 在没有真实无人机时生成伪造数据，用于GUI调试。
 所有数据基于时间戳和数学函数动态计算，无需后台线程。
 """
+
 import time
 import math
 import threading
@@ -90,7 +91,11 @@ class MockMQTTClient:
         lon = self.base_lon + self.flight_radius * math.cos(angle)
 
         # 垂直位置（正弦波浮动）
-        height = self.base_height + 20.0 + self.vertical_amplitude * math.sin(self.vertical_frequency * t)
+        height = (
+            self.base_height
+            + 20.0
+            + self.vertical_amplitude * math.sin(self.vertical_frequency * t)
+        )
 
         return (lat, lon, height)
 
@@ -123,7 +128,9 @@ class MockMQTTClient:
 
     # ========== 速度数据 ==========
 
-    def get_speed(self) -> Tuple[Optional[float], Optional[float], Optional[float], Optional[float]]:
+    def get_speed(
+        self,
+    ) -> Tuple[Optional[float], Optional[float], Optional[float], Optional[float]]:
         """
         获取速度数据（水平速度, X轴速度, Y轴速度, Z轴速度）
 
@@ -143,10 +150,16 @@ class MockMQTTClient:
 
         # 速度分量（数学准确的导数）
         speed_x = tangential_velocity * math.cos(angle)  # 纬度方向
-        speed_y = -tangential_velocity * math.sin(angle)  # 经度方向（负号因为cos的导数）
+        speed_y = -tangential_velocity * math.sin(
+            angle
+        )  # 经度方向（负号因为cos的导数）
 
         # 垂直速度（高度的导数）
-        speed_z = self.vertical_amplitude * self.vertical_frequency * math.cos(self.vertical_frequency * t)
+        speed_z = (
+            self.vertical_amplitude
+            * self.vertical_frequency
+            * math.cos(self.vertical_frequency * t)
+        )
 
         # 水平速度（合成）
         horizontal_speed = math.sqrt(speed_x**2 + speed_y**2)
@@ -234,11 +247,24 @@ class MockMQTTClient:
     def get_flight_mode_name(self) -> str:
         """获取飞行模式名称（中文）"""
         mode_names = {
-            0: "待机", 1: "起飞准备", 2: "起飞准备完毕", 3: "摇杆控制",
-            4: "自动起飞", 5: "航线飞行", 6: "全景拍照", 7: "智能跟随",
-            8: "ADS-B 躲避", 9: "自动返航", 10: "自动降落", 11: "强制降落",
-            12: "三桨叶降落", 13: "升级中", 14: "未连接", 15: "APAS",
-            16: "虚拟摇杆状态", 17: "指令飞行"
+            0: "待机",
+            1: "起飞准备",
+            2: "起飞准备完毕",
+            3: "摇杆控制",
+            4: "自动起飞",
+            5: "航线飞行",
+            6: "全景拍照",
+            7: "智能跟随",
+            8: "ADS-B 躲避",
+            9: "自动返航",
+            10: "自动降落",
+            11: "强制降落",
+            12: "三桨叶降落",
+            13: "升级中",
+            14: "未连接",
+            15: "APAS",
+            16: "虚拟摇杆状态",
+            17: "指令飞行",
         }
         mode_code = self.get_flight_mode()
         if mode_code is None:
@@ -252,12 +278,12 @@ class MockMQTTClient:
         返回模拟的状态信息
         """
         return {
-            'mode_code': self.get_flight_mode(),
-            'rth_altitude': 100,  # 返航高度100米
-            'distance_limit': 5000,  # 距离限制5000米
-            'height_limit': 420,  # 高度限制420米
-            'is_in_fixed_speed': False,
-            'night_lights_state': 0,
+            "mode_code": self.get_flight_mode(),
+            "rth_altitude": 100,  # 返航高度100米
+            "distance_limit": 5000,  # 距离限制5000米
+            "height_limit": 420,  # 高度限制420米
+            "is_in_fixed_speed": False,
+            "night_lights_state": 0,
         }
 
     def get_aircraft_sn(self) -> Optional[str]:
@@ -268,31 +294,33 @@ class MockMQTTClient:
     def get_topo_data(self) -> Optional[Dict[str, Any]]:
         """获取完整的拓扑数据（模拟）"""
         return {
-            'domain': '2',
-            'type': 174,
-            'sub_type': 0,
-            'device_secret': 'mock_secret',
-            'nonce': 'mock_nonce',
-            'thing_version': '1.2.0',
-            'sub_devices': [
+            "domain": "2",
+            "type": 174,
+            "sub_type": 0,
+            "device_secret": "mock_secret",
+            "nonce": "mock_nonce",
+            "thing_version": "1.2.0",
+            "sub_devices": [
                 {
-                    'sn': f"AIRCRAFT_{self.gateway_sn[-6:]}",
-                    'domain': '0',
-                    'type': 99,
-                    'sub_type': 0,
-                    'index': 'A',
-                    'device_secret': 'mock_aircraft_secret',
-                    'nonce': 'mock_aircraft_nonce',
-                    'thing_version': '1.2.0'
+                    "sn": f"AIRCRAFT_{self.gateway_sn[-6:]}",
+                    "domain": "0",
+                    "type": 99,
+                    "sub_type": 0,
+                    "index": "A",
+                    "device_secret": "mock_aircraft_secret",
+                    "nonce": "mock_aircraft_nonce",
+                    "thing_version": "1.2.0",
                 }
-            ]
+            ],
         }
 
     def get_payload_index(self) -> Optional[str]:
         """获取相机负载索引（模拟，返回默认值 "88-0-0"）"""
         return "88-0-0"
 
-    def get_gimbal_attitude(self) -> tuple[Optional[float], Optional[float], Optional[float]]:
+    def get_gimbal_attitude(
+        self,
+    ) -> tuple[Optional[float], Optional[float], Optional[float]]:
         """
         获取云台姿态 (pitch, roll, yaw)（模拟）
 
@@ -308,10 +336,10 @@ class MockMQTTClient:
         """获取完整的相机 OSD 数据（模拟）"""
         pitch, roll, yaw = self.get_gimbal_attitude()
         return {
-            'payload_index': self.get_payload_index(),
-            'gimbal_pitch': pitch,
-            'gimbal_roll': roll,
-            'gimbal_yaw': yaw,
+            "payload_index": self.get_payload_index(),
+            "gimbal_pitch": pitch,
+            "gimbal_roll": roll,
+            "gimbal_yaw": yaw,
         }
 
     # ========== 兼容方法（用于控制命令）==========
@@ -367,18 +395,16 @@ class MockServiceCaller:
     def __init__(self, mqtt_client: MockMQTTClient):
         self.mqtt = mqtt_client
 
-    def call(self, method: str, data: Dict[str, Any] = None, timeout: int = 10) -> Dict[str, Any]:
+    def call(
+        self, method: str, data: Dict[str, Any] = None, timeout: int = 10
+    ) -> Dict[str, Any]:
         """
         模拟服务调用（总是返回成功）
 
         Returns:
             {'result': 0, 'data': {}, 'message': 'Mock success'}
         """
-        return {
-            'result': 0,
-            'data': {},
-            'message': 'Mock success'
-        }
+        return {"result": 0, "data": {}, "message": "Mock success"}
 
 
 class MockHeartbeatThread(threading.Thread):
@@ -417,6 +443,7 @@ class MockHeartbeatThread(threading.Thread):
 
 # ========== 工厂函数 ==========
 
+
 def create_mock_connections(uav_configs: list) -> list:
     """
     创建多个模拟连接
@@ -434,7 +461,7 @@ def create_mock_connections(uav_configs: list) -> list:
     connections = []
 
     for index, config in enumerate(uav_configs):
-        sn = config['sn']
+        sn = config["sn"]
 
         # 创建Mock对象
         mqtt = MockMQTTClient(sn, mqtt_config={}, index=index)

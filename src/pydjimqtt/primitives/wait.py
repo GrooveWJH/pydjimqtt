@@ -1,6 +1,7 @@
 """
 等待条件原语
 """
+
 import time
 from typing import Callable
 
@@ -9,7 +10,7 @@ def wait_for_condition(
     condition_func: Callable[[], bool],
     timeout: float = 30.0,
     check_interval: float = 0.5,
-    timeout_msg: str = "等待超时"
+    timeout_msg: str = "等待超时",
 ) -> None:
     """
     等待条件满足（通用等待模式）

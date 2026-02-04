@@ -23,6 +23,7 @@
 - 手动暂停：P 快捷键
 - 被动监听：不拦截按键，不干扰其他程序
 """
+
 import threading
 from pynput import keyboard
 
@@ -46,7 +47,9 @@ MAX_VALUE = 1684
 class JoystickWidget(Static):
     """虚拟摇杆组件"""
 
-    def __init__(self, title: str, x_label: str, y_label: str, scale: float = 1.0, **kwargs):
+    def __init__(
+        self, title: str, x_label: str, y_label: str, scale: float = 1.0, **kwargs
+    ):
         super().__init__(**kwargs)
         self.title = title
         self.x_label = x_label
@@ -61,7 +64,16 @@ class JoystickWidget(Static):
         self.y_value = y_value
         self.refresh()
 
-    def _get_cell_style(self, x: int, y: int, x_pos: int, y_pos: int, x_percent: float, y_percent: float, size: int):
+    def _get_cell_style(
+        self,
+        x: int,
+        y: int,
+        x_pos: int,
+        y_pos: int,
+        x_percent: float,
+        y_percent: float,
+        size: int,
+    ):
         """Determine character and style for a joystick cell.
 
         Returns: (char, style)
@@ -116,7 +128,8 @@ class JoystickWidget(Static):
             line_text = Text()
             for x in range(-size, size + 1):
                 char, style = self._get_cell_style(
-                    x, y, x_pos, y_pos, x_percent, y_percent, size)
+                    x, y, x_pos, y_pos, x_percent, y_percent, size
+                )
                 line_text.append(char, style=style if style else None)
             lines.append(line_text)
 
@@ -133,10 +146,18 @@ class JoystickWidget(Static):
         content = Group(
             Align.center(joystick_display, vertical="middle"),
             "",
-            Align.center(Text(
-                f"{self.x_label}: {self.x_value:4d} ({x_diff:+4d}) {x_percent:+6.1f}%", style=x_color)),
-            Align.center(Text(
-                f"{self.y_label}: {self.y_value:4d} ({y_diff:+4d}) {y_percent:+6.1f}%", style=y_color))
+            Align.center(
+                Text(
+                    f"{self.x_label}: {self.x_value:4d} ({x_diff:+4d}) {x_percent:+6.1f}%",
+                    style=x_color,
+                )
+            ),
+            Align.center(
+                Text(
+                    f"{self.y_label}: {self.y_value:4d} ({y_diff:+4d}) {y_percent:+6.1f}%",
+                    style=y_color,
+                )
+            ),
         )
 
         return Panel(
@@ -165,9 +186,7 @@ class ControlsWidget(Static):
         table.add_row("Ctrl+C", "退出")
 
         return Panel(
-            table,
-            title="[bold cyan]🎮 控制说明[/bold cyan]",
-            border_style="cyan"
+            table, title="[bold cyan]🎮 控制说明[/bold cyan]", border_style="cyan"
         )
 
 
@@ -189,7 +208,7 @@ class KeyStatusWidget(Static):
         return Panel(
             Align.center(content, vertical="middle"),
             title="[bold cyan]⌨️  当前按键[/bold cyan]",
-            border_style="cyan"
+            border_style="cyan",
         )
 
 
@@ -264,10 +283,10 @@ class JoystickApp(App):
 
     # 摇杆状态
     stick_state = {
-        'throttle': NEUTRAL,
-        'yaw': NEUTRAL,
-        'pitch': NEUTRAL,
-        'roll': NEUTRAL,
+        "throttle": NEUTRAL,
+        "yaw": NEUTRAL,
+        "pitch": NEUTRAL,
+        "roll": NEUTRAL,
     }
 
     # 按键状态（pynput 监听）
@@ -301,7 +320,7 @@ class JoystickApp(App):
             # 窗口标题栏
             yield Static(
                 "[bold cyan]🎮 虚拟摇杆测试工具 (美国手模式)[/bold cyan]",
-                id="window_title"
+                id="window_title",
             )
 
             # 摇杆区域（绿色边框）
@@ -312,7 +331,7 @@ class JoystickApp(App):
                         "偏航 (Yaw)",
                         "油门 (Throttle)",
                         scale=self.scale,
-                        id="left_joystick"
+                        id="left_joystick",
                     )
                     yield self.left_joystick
 
@@ -321,7 +340,7 @@ class JoystickApp(App):
                         "横滚 (Roll)",
                         "俯仰 (Pitch)",
                         scale=self.scale,
-                        id="right_joystick"
+                        id="right_joystick",
                     )
                     yield self.right_joystick
 
@@ -340,8 +359,7 @@ class JoystickApp(App):
 
         # 启动 pynput 键盘监听（后台线程）
         self._keyboard_listener = keyboard.Listener(
-            on_press=self._on_key_press,
-            on_release=self._on_key_release
+            on_press=self._on_key_press, on_release=self._on_key_release
         )
         self._keyboard_listener.start()
 
@@ -365,15 +383,15 @@ class JoystickApp(App):
         Returns: (key_char, is_shift)
         """
         try:
-            key_char = key.char.lower() if hasattr(key, 'char') else None
+            key_char = key.char.lower() if hasattr(key, "char") else None
         except AttributeError:
             key_char = None
 
         # Map special keys
         key_map = {
-            keyboard.Key.space: 'space',
-            keyboard.Key.shift: 'shift',
-            keyboard.Key.shift_r: 'shift',
+            keyboard.Key.space: "space",
+            keyboard.Key.shift: "shift",
+            keyboard.Key.shift_r: "shift",
         }
 
         is_shift = key in (keyboard.Key.shift, keyboard.Key.shift_r)
@@ -398,8 +416,12 @@ class JoystickApp(App):
         """pynput 按键按下事件（后台线程）"""
         key_char, is_shift = self._normalize_key(key)
 
-        if key_char == 'b':
-            if self.on_emergency_stop and not self.paused and not self._emergency_stop_armed:
+        if key_char == "b":
+            if (
+                self.on_emergency_stop
+                and not self.paused
+                and not self._emergency_stop_armed
+            ):
                 self._emergency_stop_armed = True
                 self.call_from_thread(self.on_emergency_stop)
             return
@@ -412,7 +434,7 @@ class JoystickApp(App):
             self._shift_pressed = True
 
         # P 键：切换手动暂停（无需 Shift）
-        if key_char == 'p':
+        if key_char == "p":
             self.call_from_thread(self._toggle_pause_ui)
             return
 
@@ -420,7 +442,7 @@ class JoystickApp(App):
         """pynput 按键释放事件（后台线程）- 零延迟"""
         key_char, is_shift = self._normalize_key(key)
 
-        if key_char == 'b':
+        if key_char == "b":
             self._emergency_stop_armed = False
             return
 
@@ -433,10 +455,10 @@ class JoystickApp(App):
 
     def reset_sticks(self):
         """重置所有通道到中值"""
-        self.stick_state['throttle'] = NEUTRAL
-        self.stick_state['yaw'] = NEUTRAL
-        self.stick_state['pitch'] = NEUTRAL
-        self.stick_state['roll'] = NEUTRAL
+        self.stick_state["throttle"] = NEUTRAL
+        self.stick_state["yaw"] = NEUTRAL
+        self.stick_state["pitch"] = NEUTRAL
+        self.stick_state["roll"] = NEUTRAL
 
     def update_sticks(self):
         """根据按下的按键更新杆量（优先级检查）"""
@@ -464,13 +486,13 @@ class JoystickApp(App):
         # Shift: 下降 (throttle) - 满杆量
         # K: 外八解锁
         key_mappings = {
-            'w': ('pitch', HALF_RANGE),      # 前进
-            's': ('pitch', -HALF_RANGE),     # 后退
-            'a': ('roll', -HALF_RANGE),      # 左移
-            'd': ('roll', HALF_RANGE),       # 右移
-            'q': ('yaw', -HALF_RANGE),       # 左转
-            'e': ('yaw', HALF_RANGE),        # 右转
-            'space': ('throttle', HALF_RANGE),  # 上升
+            "w": ("pitch", HALF_RANGE),  # 前进
+            "s": ("pitch", -HALF_RANGE),  # 后退
+            "a": ("roll", -HALF_RANGE),  # 左移
+            "d": ("roll", HALF_RANGE),  # 右移
+            "q": ("yaw", -HALF_RANGE),  # 左转
+            "e": ("yaw", HALF_RANGE),  # 右转
+            "space": ("throttle", HALF_RANGE),  # 上升
         }
 
         # Apply normal key mappings
@@ -479,26 +501,25 @@ class JoystickApp(App):
                 self.stick_state[channel] = NEUTRAL + delta
 
         # Check if shift is pressed (check both normalized and raw keys)
-        shift_pressed = ('shift' in current_keys or
-                         any('shift' in k.lower() for k in current_keys if isinstance(k, str)))
+        shift_pressed = "shift" in current_keys or any(
+            "shift" in k.lower() for k in current_keys if isinstance(k, str)
+        )
 
         # Special commands override
         if shift_pressed:  # 下降 - 满杆量
-            self.stick_state['throttle'] = NEUTRAL - FULL_RANGE
-        elif 'k' in current_keys:  # Unlock pattern (外八解锁)
-            self.stick_state['throttle'] = NEUTRAL - FULL_RANGE
-            self.stick_state['yaw'] = NEUTRAL - FULL_RANGE
-            self.stick_state['pitch'] = NEUTRAL - FULL_RANGE
-            self.stick_state['roll'] = NEUTRAL + FULL_RANGE
+            self.stick_state["throttle"] = NEUTRAL - FULL_RANGE
+        elif "k" in current_keys:  # Unlock pattern (外八解锁)
+            self.stick_state["throttle"] = NEUTRAL - FULL_RANGE
+            self.stick_state["yaw"] = NEUTRAL - FULL_RANGE
+            self.stick_state["pitch"] = NEUTRAL - FULL_RANGE
+            self.stick_state["roll"] = NEUTRAL + FULL_RANGE
 
         # 更新摇杆显示
         self.left_joystick.update_values(
-            self.stick_state['yaw'],
-            self.stick_state['throttle']
+            self.stick_state["yaw"], self.stick_state["throttle"]
         )
         self.right_joystick.update_values(
-            self.stick_state['roll'],
-            self.stick_state['pitch']
+            self.stick_state["roll"], self.stick_state["pitch"]
         )
 
         # 如果有回调且未暂停，且有按键按下时，调用回调传递摇杆状态
@@ -512,5 +533,5 @@ def main():
     app.run()
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     main()

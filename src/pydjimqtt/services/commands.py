@@ -3,6 +3,7 @@ DJI 云端服务调用 - 统一接口
 
 所有 DJI 服务的调用函数都在这里，通过通用包装消除重复代码。
 """
+
 import time
 import json
 import threading
@@ -18,7 +19,7 @@ def _call_service(
     caller: ServiceCaller,
     method: str,
     data: Optional[Dict[str, Any]] = None,
-    success_msg: Optional[str] = None
+    success_msg: Optional[str] = None,
 ) -> Dict[str, Any]:
     """
     通用服务调用包装 - 消除所有重复代码
@@ -38,14 +39,16 @@ def _call_service(
     try:
         result = caller.call(method, data or {})
 
-        if result.get('result') == 0:
+        if result.get("result") == 0:
             if success_msg:
                 console.print(f"[green]✓ {success_msg}[/green]")
-            return result.get('data', {})
+            return result.get("data", {})
         else:
             # 提取详细错误信息
-            error_code = result.get('result', 'unknown')
-            error_msg = result.get('message', result.get('output', {}).get('msg', 'Unknown error'))
+            error_code = result.get("result", "unknown")
+            error_msg = result.get(
+                "message", result.get("output", {}).get("msg", "Unknown error")
+            )
 
             # 打印详细错误信息（仅针对错误情况）
             console.print("[red]✗ 服务调用失败:[/red]")
@@ -55,7 +58,9 @@ def _call_service(
             console.print(f"  [dim]完整响应: {result}[/dim]")
 
             # 增强异常消息，包含完整响应以便调试
-            raise Exception(f"{method} 失败 (code={error_code}): {error_msg} | 完整响应: {result}")
+            raise Exception(
+                f"{method} 失败 (code={error_code}): {error_msg} | 完整响应: {result}"
+            )
 
     except Exception as e:
         console.print(f"[red]✗ {method}: {e}[/red]")
@@ -64,10 +69,11 @@ def _call_service(
 
 # ========== 控制权管理 ==========
 
+
 def request_control_auth(
     caller: ServiceCaller,
     user_id: str = "default_user",
-    user_callsign: str = "Cloud Pilot"
+    user_callsign: str = "Cloud Pilot",
 ) -> Dict[str, Any]:
     """请求控制权"""
     console.print("[bold cyan]请求控制权...[/bold cyan]")
@@ -77,25 +83,28 @@ def request_control_auth(
         {
             "user_id": user_id,
             "user_callsign": user_callsign,
-            "control_keys": ["flight"]
+            "control_keys": ["flight"],
         },
-        "控制权请求成功"
+        "控制权请求成功",
     )
 
 
 def release_control_auth(caller: ServiceCaller) -> Dict[str, Any]:
     """释放控制权"""
     console.print("[cyan]释放控制权...[/cyan]")
-    return _call_service(caller, "cloud_control_auth_release", success_msg="控制权已释放")
+    return _call_service(
+        caller, "cloud_control_auth_release", success_msg="控制权已释放"
+    )
 
 
 # ========== DRC 模式 ==========
+
 
 def enter_drc_mode(
     caller: ServiceCaller,
     mqtt_broker: Dict[str, Any],
     osd_frequency: int = 30,
-    hsi_frequency: int = 10
+    hsi_frequency: int = 10,
 ) -> Dict[str, Any]:
     """进入 DRC 模式"""
     console.print("[bold cyan]进入 DRC 模式...[/bold cyan]")
@@ -105,9 +114,9 @@ def enter_drc_mode(
         {
             "mqtt_broker": mqtt_broker,
             "osd_frequency": osd_frequency,
-            "hsi_frequency": hsi_frequency
+            "hsi_frequency": hsi_frequency,
         },
-        f"已进入 DRC 模式 (OSD: {osd_frequency}Hz, HSI: {hsi_frequency}Hz)"
+        f"已进入 DRC 模式 (OSD: {osd_frequency}Hz, HSI: {hsi_frequency}Hz)",
     )
     return result
 
@@ -120,10 +129,9 @@ def exit_drc_mode(caller: ServiceCaller) -> Dict[str, Any]:
 
 # ========== 直播控制 ==========
 
+
 def change_live_lens(
-    caller: ServiceCaller,
-    video_id: str,
-    video_type: str = "normal"
+    caller: ServiceCaller, video_id: str, video_type: str = "normal"
 ) -> Dict[str, Any]:
     """
     切换直播镜头
@@ -149,11 +157,13 @@ def change_live_lens(
         caller,
         "live_lens_change",
         {"video_id": video_id, "video_type": video_type},
-        f"镜头已切换到{lens_name}"
+        f"镜头已切换到{lens_name}",
     )
 
 
-def set_live_quality(caller: ServiceCaller, video_id: str, video_quality: int) -> Dict[str, Any]:
+def set_live_quality(
+    caller: ServiceCaller, video_id: str, video_quality: int
+) -> Dict[str, Any]:
     """
     设置直播清晰度
 
@@ -181,7 +191,7 @@ def set_live_quality(caller: ServiceCaller, video_id: str, video_quality: int) -
         caller,
         "live_set_quality",
         {"video_id": video_id, "video_quality": video_quality},
-        f"清晰度已设置为 {quality_name}"
+        f"清晰度已设置为 {quality_name}",
     )
 
 
@@ -190,7 +200,7 @@ def start_live_push(
     url: str,
     video_id: str,
     url_type: int = 0,
-    video_quality: int = 0
+    video_quality: int = 0,
 ) -> Dict[str, Any]:
     """开始直播推流 (url_type: 0-RTMP, 1-RTSP, 2-GB28181)"""
     console.print("[bold cyan]开始直播推流...[/bold cyan]")
@@ -203,9 +213,9 @@ def start_live_push(
             "url": url,
             "video_id": video_id,
             "url_type": url_type,
-            "video_quality": video_quality
+            "video_quality": video_quality,
         },
-        "直播推流已开始"
+        "直播推流已开始",
     )
 
 
@@ -213,14 +223,12 @@ def stop_live_push(caller: ServiceCaller, video_id: str) -> Dict[str, Any]:
     """停止直播推流"""
     console.print(f"[cyan]停止直播推流: {video_id}[/cyan]")
     return _call_service(
-        caller,
-        "live_stop_push",
-        {"video_id": video_id},
-        "直播推流已停止"
+        caller, "live_stop_push", {"video_id": video_id}, "直播推流已停止"
     )
 
 
 # ========== 飞行控制 ==========
+
 
 def return_home(caller: ServiceCaller) -> Dict[str, Any]:
     """
@@ -249,7 +257,7 @@ def fly_to_point(
     longitude: float,
     height: float,
     max_speed: int = 12,
-    fly_to_id: Optional[str] = None
+    fly_to_id: Optional[str] = None,
 ) -> str:
     """
     飞向目标点
@@ -278,7 +286,9 @@ def fly_to_point(
     if fly_to_id is None:
         fly_to_id = str(uuid.uuid4())
 
-    console.print(f"[cyan]飞向目标点 (lat: {latitude:.6f}, lon: {longitude:.6f}, h: {height:.1f}m)...[/cyan]")
+    console.print(
+        f"[cyan]飞向目标点 (lat: {latitude:.6f}, lon: {longitude:.6f}, h: {height:.1f}m)...[/cyan]"
+    )
 
     _call_service(
         caller,
@@ -287,14 +297,10 @@ def fly_to_point(
             "fly_to_id": fly_to_id,
             "max_speed": max_speed,
             "points": [
-                {
-                    "latitude": latitude,
-                    "longitude": longitude,
-                    "height": height
-                }
-            ]
+                {"latitude": latitude, "longitude": longitude, "height": height}
+            ],
         },
-        "Fly-to 指令已发送"
+        "Fly-to 指令已发送",
     )
 
     # 只返回 fly_to_id
@@ -303,12 +309,13 @@ def fly_to_point(
 
 # ========== DRC 杆量控制 ==========
 
+
 def send_stick_control(
     mqtt_client: MQTTClient,
     roll: int = 1024,
     pitch: int = 1024,
     throttle: int = 1024,
-    yaw: int = 1024
+    yaw: int = 1024,
 ) -> None:
     """
     发送 DRC 杆量控制指令（无回包机制）
@@ -353,12 +360,7 @@ def send_stick_control(
     payload = {
         "seq": seq,
         "method": "stick_control",
-        "data": {
-            "roll": roll,
-            "pitch": pitch,
-            "throttle": throttle,
-            "yaw": yaw
-        }
+        "data": {"roll": roll, "pitch": pitch, "throttle": throttle, "yaw": yaw},
     }
 
     # 发送控制指令（QoS 0，无回包机制）
@@ -366,6 +368,7 @@ def send_stick_control(
 
 
 # ========== DRC 连接设置 ==========
+
 
 def setup_drc_connection(
     gateway_sn: str,
@@ -376,7 +379,7 @@ def setup_drc_connection(
     hsi_frequency: int = 10,
     heartbeat_interval: float = 1.0,
     wait_for_user: bool = True,
-    skip_drc_setup: bool = False
+    skip_drc_setup: bool = False,
 ) -> Tuple[MQTTClient, ServiceCaller, Optional[threading.Thread]]:
     """
     Setup complete DRC connection in one call.
@@ -442,15 +445,19 @@ def setup_drc_connection(
         # 添加3位随机UUID后缀，避免多实例冲突
         random_suffix = str(uuid.uuid4())[:3]
         mqtt_broker_config = {
-            'address': f"{mqtt_config['host']}:{mqtt_config['port']}",
-            'client_id': f"drc-{gateway_sn}-{random_suffix}",
-            'username': mqtt_config['username'],
-            'password': mqtt_config['password'],
-            'expire_time': int(time.time()) + 3600,  # 1 hour expiry
-            'enable_tls': mqtt_config.get('enable_tls', False)
+            "address": f"{mqtt_config['host']}:{mqtt_config['port']}",
+            "client_id": f"drc-{gateway_sn}-{random_suffix}",
+            "username": mqtt_config["username"],
+            "password": mqtt_config["password"],
+            "expire_time": int(time.time()) + 3600,  # 1 hour expiry
+            "enable_tls": mqtt_config.get("enable_tls", False),
         }
-        enter_drc_mode(caller, mqtt_broker=mqtt_broker_config,
-                      osd_frequency=osd_frequency, hsi_frequency=hsi_frequency)
+        enter_drc_mode(
+            caller,
+            mqtt_broker=mqtt_broker_config,
+            osd_frequency=osd_frequency,
+            hsi_frequency=hsi_frequency,
+        )
 
         # Step 6: Start heartbeat
         heartbeat = start_heartbeat(mqtt, interval=heartbeat_interval)
@@ -471,7 +478,7 @@ def setup_multiple_drc_connections(
     osd_frequency: int = 30,
     hsi_frequency: int = 10,
     heartbeat_interval: float = 1.0,
-    skip_drc_setup: bool = False
+    skip_drc_setup: bool = False,
 ) -> List[Tuple[MQTTClient, ServiceCaller, threading.Thread]]:
     """
     Setup multiple DRC connections in parallel (3x faster than sequential).
@@ -509,13 +516,15 @@ def setup_multiple_drc_connections(
     from ..services.heartbeat import start_heartbeat
 
     if skip_drc_setup:
-        console.print(f"[bold yellow]仅连接 MQTT ({len(uav_configs)} 架无人机)[/bold yellow]")
+        console.print(
+            f"[bold yellow]仅连接 MQTT ({len(uav_configs)} 架无人机)[/bold yellow]"
+        )
         console.print("[dim]跳过控制权请求和 DRC 模式设置[/dim]\n")
 
         # 只建立 MQTT 连接，不请求控制权和 DRC 模式
         connections = []
         for config in uav_configs:
-            sn = config['sn']
+            sn = config["sn"]
             console.print(f"[cyan]连接 {sn}...[/cyan]")
 
             mqtt = MQTTClient(sn, mqtt_config)
@@ -525,22 +534,27 @@ def setup_multiple_drc_connections(
             # 不启动心跳（因为没有进入 DRC 模式）
             # 创建一个空的 MockHeartbeatThread 占位
             from ..mock.mock_drone import MockHeartbeatThread
+
             heartbeat = MockHeartbeatThread()
 
             connections.append((mqtt, caller, heartbeat))
             console.print(f"[green]✓ {sn} MQTT 已连接[/green]")
 
-        console.print(f"\n[bold green]✓ 所有 MQTT 连接已建立 ({len(connections)} 架)[/bold green]\n")
+        console.print(
+            f"\n[bold green]✓ 所有 MQTT 连接已建立 ({len(connections)} 架)[/bold green]\n"
+        )
         return connections
 
     # 正常的 DRC 连接流程
-    console.print(f"[bold cyan]并行设置 {len(uav_configs)} 架无人机的 DRC 连接[/bold cyan]\n")
+    console.print(
+        f"[bold cyan]并行设置 {len(uav_configs)} 架无人机的 DRC 连接[/bold cyan]\n"
+    )
 
     # Phase 1: Parallel connect + auth request
     def phase1_connect_and_auth(config):
-        sn = config['sn']
-        user_id = config.get('user_id', 'pilot')
-        callsign = config.get('callsign', 'Callsign')
+        sn = config["sn"]
+        user_id = config.get("user_id", "pilot")
+        callsign = config.get("callsign", "Callsign")
 
         console.print(f"[dim]连接 {sn}...[/dim]")
         mqtt = MQTTClient(sn, mqtt_config)
@@ -561,21 +575,26 @@ def setup_multiple_drc_connections(
     # Phase 3: Parallel enter DRC + start heartbeat
     def phase3_enter_drc_and_heartbeat(result):
         import uuid
+
         sn, mqtt, caller = result
 
         console.print(f"[dim]设置 {sn} DRC 模式...[/dim]")
         # 添加3位随机UUID后缀，避免多实例冲突
         random_suffix = str(uuid.uuid4())[:3]
         mqtt_broker_config = {
-            'address': f"{mqtt_config['host']}:{mqtt_config['port']}",
-            'client_id': f"drc-{sn}-{random_suffix}",
-            'username': mqtt_config['username'],
-            'password': mqtt_config['password'],
-            'expire_time': int(time.time()) + 3600,  # 1 hour expiry
-            'enable_tls': mqtt_config.get('enable_tls', False)
+            "address": f"{mqtt_config['host']}:{mqtt_config['port']}",
+            "client_id": f"drc-{sn}-{random_suffix}",
+            "username": mqtt_config["username"],
+            "password": mqtt_config["password"],
+            "expire_time": int(time.time()) + 3600,  # 1 hour expiry
+            "enable_tls": mqtt_config.get("enable_tls", False),
         }
-        enter_drc_mode(caller, mqtt_broker=mqtt_broker_config,
-                      osd_frequency=osd_frequency, hsi_frequency=hsi_frequency)
+        enter_drc_mode(
+            caller,
+            mqtt_broker=mqtt_broker_config,
+            osd_frequency=osd_frequency,
+            hsi_frequency=hsi_frequency,
+        )
         heartbeat = start_heartbeat(mqtt, interval=heartbeat_interval)
 
         return (mqtt, caller, heartbeat)
@@ -583,17 +602,16 @@ def setup_multiple_drc_connections(
     with ThreadPoolExecutor() as executor:
         connections = list(executor.map(phase3_enter_drc_and_heartbeat, phase1_results))
 
-    console.print(f"\n[bold green]✓ 所有无人机 DRC 连接设置完成 ({len(connections)} 架)[/bold green]\n")
+    console.print(
+        f"\n[bold green]✓ 所有无人机 DRC 连接设置完成 ({len(connections)} 架)[/bold green]\n"
+    )
     return connections
 
 
 # ========== 云台控制 ==========
 
-def reset_gimbal(
-    mqtt_client: MQTTClient,
-    payload_index: str,
-    reset_mode: int
-) -> None:
+
+def reset_gimbal(mqtt_client: MQTTClient, payload_index: str, reset_mode: int) -> None:
     """
     重置云台（DRC 下行指令，无回包机制）
 
@@ -618,12 +636,7 @@ def reset_gimbal(
         >>> reset_gimbal(mqtt, payload_index="89-0-0", reset_mode=1)
         [bright_yellow]✓ 云台向下[/bright_yellow]
     """
-    reset_mode_names = {
-        0: "回中",
-        1: "向下",
-        2: "偏航回中",
-        3: "俯仰向下"
-    }
+    reset_mode_names = {0: "回中", 1: "向下", 2: "偏航回中", 3: "俯仰向下"}
     mode_name = reset_mode_names.get(reset_mode, f"未知模式({reset_mode})")
 
     # 参数验证
@@ -637,10 +650,7 @@ def reset_gimbal(
     payload = {
         "seq": seq,
         "method": "drc_gimbal_reset",
-        "data": {
-            "payload_index": payload_index,
-            "reset_mode": reset_mode
-        }
+        "data": {"payload_index": payload_index, "reset_mode": reset_mode},
     }
 
     # 发送指令（QoS 0，无回包机制）

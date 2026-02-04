@@ -4,6 +4,7 @@ MQTT 连接测试脚本
 
 测试连接到远程 MQTT Broker 并验证用户名密码
 """
+
 import paho.mqtt.client as mqtt
 import time
 from rich.console import Console
@@ -15,13 +16,15 @@ console = Console()
 def on_connect(client, userdata, flags, reason_code, properties):
     """连接回调（MQTT v5）"""
     # reason_code 是 ReasonCode 对象，需要取 value
-    rc = reason_code.value if hasattr(reason_code, 'value') else reason_code
+    rc = reason_code.value if hasattr(reason_code, "value") else reason_code
 
     if rc == 0:
         console.print("[bold green]✓ 连接成功！[/bold green]")
         console.print(f"[dim]Client ID: {client._client_id.decode()}[/dim]")
         # flags 是 ConnectFlags 对象，用属性访问
-        session_present = flags.session_present if hasattr(flags, 'session_present') else False
+        session_present = (
+            flags.session_present if hasattr(flags, "session_present") else False
+        )
         console.print(f"[dim]Session Present: {session_present}[/dim]")
     else:
         error_messages = {
@@ -48,7 +51,7 @@ def on_connect(client, userdata, flags, reason_code, properties):
 
 def on_disconnect(client, userdata, flags, reason_code, properties):
     """断开连接回调（MQTT v5）"""
-    rc = reason_code.value if hasattr(reason_code, 'value') else reason_code
+    rc = reason_code.value if hasattr(reason_code, "value") else reason_code
     if rc == 0:
         console.print("[yellow]正常断开连接[/yellow]")
     else:
@@ -69,20 +72,22 @@ def main():
     password = "lab605605"
     client_id = "test-client-python"
 
-    console.print(Panel.fit(
-        "[bold cyan]MQTT 连接测试[/bold cyan]\n"
-        f"[dim]Broker: {broker}:{port}[/dim]\n"
-        f"[dim]Username: {username}[/dim]\n"
-        f"[dim]Client ID: {client_id}[/dim]",
-        border_style="cyan"
-    ))
+    console.print(
+        Panel.fit(
+            "[bold cyan]MQTT 连接测试[/bold cyan]\n"
+            f"[dim]Broker: {broker}:{port}[/dim]\n"
+            f"[dim]Username: {username}[/dim]\n"
+            f"[dim]Client ID: {client_id}[/dim]",
+            border_style="cyan",
+        )
+    )
 
     # 创建客户端
     console.print("\n[cyan]正在创建 MQTT 客户端...[/cyan]")
     client = mqtt.Client(
         client_id=client_id,
         callback_api_version=mqtt.CallbackAPIVersion.VERSION2,  # 使用新版回调 API
-        protocol=mqtt.MQTTv5  # 使用 MQTT 5.0
+        protocol=mqtt.MQTTv5,  # 使用 MQTT 5.0
     )
 
     # 设置用户名和密码

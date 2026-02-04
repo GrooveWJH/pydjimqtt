@@ -1,6 +1,13 @@
 import time
 
-from pydjimqtt import MQTTClient, ServiceCaller, request_control_auth, start_live, stop_live, set_live_quality
+from pydjimqtt import (
+    MQTTClient,
+    ServiceCaller,
+    request_control_auth,
+    start_live,
+    stop_live,
+    set_live_quality,
+)
 
 
 MQTT_CONFIG = {
@@ -22,8 +29,9 @@ def main() -> None:
         request_control_auth(caller, user_id="pilot", user_callsign="callsign")
         input("Confirm control on RC, then press Enter to start live...")
 
-        video_id = start_live(caller, mqtt, RTMP_URL,
-                              video_index="normal-0", video_quality=3)
+        video_id = start_live(
+            caller, mqtt, RTMP_URL, video_index="normal-0", video_quality=3
+        )
         if not video_id:
             return
 

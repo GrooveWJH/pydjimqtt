@@ -7,6 +7,7 @@ DJI SDK 通用工具函数
 - 相机数据等待
 - Video ID 构建
 """
+
 import time
 import sys
 import tty
@@ -38,7 +39,7 @@ def print_json_message(title: str, data: Dict[str, Any], color: str = "cyan") ->
         syntax,
         title=f"[bold {color}]{title}[/bold {color}]",
         border_style=color,
-        padding=(1, 2)
+        padding=(1, 2),
     )
     console.print("\n")
     console.print(panel)
@@ -62,25 +63,27 @@ def get_key() -> Optional[str]:
         tty.setraw(sys.stdin.fileno())
         ch = sys.stdin.read(1)
         # 检测箭头键（转义序列）
-        if ch == '\x1b':  # ESC
+        if ch == "\x1b":  # ESC
             ch2 = sys.stdin.read(1)
-            if ch2 == '[':
+            if ch2 == "[":
                 ch3 = sys.stdin.read(1)
-                if ch3 == 'A':
-                    return 'UP'
-                elif ch3 == 'B':
-                    return 'DOWN'
-                elif ch3 == 'C':
-                    return 'RIGHT'
-                elif ch3 == 'D':
-                    return 'LEFT'
-            return 'ESC'
+                if ch3 == "A":
+                    return "UP"
+                elif ch3 == "B":
+                    return "DOWN"
+                elif ch3 == "C":
+                    return "RIGHT"
+                elif ch3 == "D":
+                    return "LEFT"
+            return "ESC"
         return ch
     finally:
         termios.tcsetattr(fd, termios.TCSADRAIN, old_settings)
 
 
-def wait_for_camera_data(mqtt_client, max_wait: int = 10) -> Tuple[Optional[str], Optional[str]]:
+def wait_for_camera_data(
+    mqtt_client, max_wait: int = 10
+) -> Tuple[Optional[str], Optional[str]]:
     """
     等待相机数据到达
 

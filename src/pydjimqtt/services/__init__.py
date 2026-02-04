@@ -1,6 +1,7 @@
 """
 DJI 服务模块
 """
+
 from .commands import (
     request_control_auth,
     release_control_auth,
@@ -31,38 +32,38 @@ from .connection_manager import DRCConnectionManager, ConnectionState
 
 __all__ = [
     # 控制权
-    'request_control_auth',
-    'release_control_auth',
+    "request_control_auth",
+    "release_control_auth",
     # DRC 模式
-    'enter_drc_mode',
-    'exit_drc_mode',
+    "enter_drc_mode",
+    "exit_drc_mode",
     # 直播
-    'change_live_lens',
-    'set_live_quality',
-    'start_live_push',
-    'stop_live_push',
+    "change_live_lens",
+    "set_live_quality",
+    "start_live_push",
+    "stop_live_push",
     # 飞行控制
-    'return_home',
-    'fly_to_point',
+    "return_home",
+    "fly_to_point",
     # 心跳
-    'start_heartbeat',
-    'stop_heartbeat',
+    "start_heartbeat",
+    "stop_heartbeat",
     # DRC 杆量控制
-    'send_stick_control',
+    "send_stick_control",
     # 相机和云台控制
-    'set_camera_zoom',
-    'take_photo',
-    'take_photo_wait',
-    'camera_look_at',
-    'camera_aim',
+    "set_camera_zoom",
+    "take_photo",
+    "take_photo_wait",
+    "camera_look_at",
+    "camera_aim",
     # 飞行器急停
-    'drone_emergency_stop',
-    'drone_emergency_stop_wait',
-    'reset_gimbal',
+    "drone_emergency_stop",
+    "drone_emergency_stop_wait",
+    "reset_gimbal",
     # DRC 连接设置
-    'setup_drc_connection',
-    'setup_multiple_drc_connections',
+    "setup_drc_connection",
+    "setup_multiple_drc_connections",
     # 连接管理
-    'DRCConnectionManager',
-    'ConnectionState',
+    "DRCConnectionManager",
+    "ConnectionState",
 ]

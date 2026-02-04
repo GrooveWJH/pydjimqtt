@@ -4,6 +4,7 @@
 提供可复用的 Rich 表格生成函数，用于实时监控多无人机任务执行状态。
 这些函数设计为通用工具，可在任何需要显示任务进度的应用中使用。
 """
+
 from __future__ import annotations
 
 from typing import Any, Dict, List, TYPE_CHECKING
@@ -42,17 +43,19 @@ def create_takeoff_table(runners: List[MissionRunner]) -> Table:
         >>>         live.update(create_takeoff_table(runners))
         >>>         time.sleep(0.25)
     """
-    table = Table(title="[bold bright_cyan]起飞进度监控[/bold bright_cyan]", show_header=True)
+    table = Table(
+        title="[bold bright_cyan]起飞进度监控[/bold bright_cyan]", show_header=True
+    )
     table.add_column("无人机", style="bright_yellow", width=10)
     table.add_column("序列号", style="bright_cyan", width=16)
     table.add_column("状态", style="bold", width=20)
     table.add_column("当前高度", style="bright_green", width=12)
 
     for runner in runners:
-        callsign = runner.config.get('callsign', 'UAV')
-        sn = runner.config.get('sn', 'N/A')
+        callsign = runner.config.get("callsign", "UAV")
+        sn = runner.config.get("sn", "N/A")
         status = runner.status
-        height = runner.data.get('height', 0.0) if runner.data else 0.0
+        height = runner.data.get("height", 0.0) if runner.data else 0.0
 
         # 状态颜色
         if "完成" in status or "任务完成" in status:
@@ -68,13 +71,15 @@ def create_takeoff_table(runners: List[MissionRunner]) -> Table:
             callsign,
             sn,
             f"[{status_color}]{status}[/{status_color}]",
-            f"{height:.2f}m" if height is not None else "N/A"
+            f"{height:.2f}m" if height is not None else "N/A",
         )
 
     return table
 
 
-def create_trajectory_table(runners: List[MissionRunner], mission_state: Dict[str, Any]) -> Table:
+def create_trajectory_table(
+    runners: List[MissionRunner], mission_state: Dict[str, Any]
+) -> Table:
     """
     创建轨迹飞行进度监控表格
 
@@ -118,7 +123,9 @@ def create_trajectory_table(runners: List[MissionRunner], mission_state: Dict[st
         >>>         live.update(create_trajectory_table(runners, mission_state))
         >>>         time.sleep(0.5)
     """
-    table = Table(title="[bold bright_cyan]轨迹飞行实时进度[/bold bright_cyan]", show_header=True)
+    table = Table(
+        title="[bold bright_cyan]轨迹飞行实时进度[/bold bright_cyan]", show_header=True
+    )
     table.add_column("无人机", style="bright_yellow", width=10)
     table.add_column("任务状态", style="bold", width=18)
     table.add_column("航点进度", style="bright_magenta", width=12)
@@ -126,21 +133,21 @@ def create_trajectory_table(runners: List[MissionRunner], mission_state: Dict[st
     table.add_column("预计时间", style="bright_cyan", width=12)
 
     for runner in runners:
-        callsign = runner.config.get('callsign', 'UAV')
+        callsign = runner.config.get("callsign", "UAV")
 
         # 从 runner.data 读取进度信息
-        current_wp = runner.data.get('current_waypoint', 0)
-        total_wp = mission_state.get(callsign, {}).get('total_waypoints', 0)
-        remaining_dist = runner.data.get('remaining_distance')
-        remaining_time = runner.data.get('remaining_time')
-        task_status = runner.data.get('task_status', '准备中')
+        current_wp = runner.data.get("current_waypoint", 0)
+        total_wp = mission_state.get(callsign, {}).get("total_waypoints", 0)
+        remaining_dist = runner.data.get("remaining_distance")
+        remaining_time = runner.data.get("remaining_time")
+        task_status = runner.data.get("task_status", "准备中")
 
         # 状态颜色
-        if '完成' in task_status:
+        if "完成" in task_status:
             status_color = "bright_green"
-        elif '飞行中' in task_status:
+        elif "飞行中" in task_status:
             status_color = "bright_yellow"
-        elif '失败' in task_status or '错误' in task_status:
+        elif "失败" in task_status or "错误" in task_status:
             status_color = "bright_red"
         else:
             status_color = "bright_cyan"
@@ -164,7 +171,7 @@ def create_trajectory_table(runners: List[MissionRunner], mission_state: Dict[st
             f"[{status_color}]{task_status}[/{status_color}]",
             wp_progress,
             dist_str,
-            time_str
+            time_str,
         )
 
     return table

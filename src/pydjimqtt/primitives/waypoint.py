@@ -1,6 +1,7 @@
 """
 航点导航原语
 """
+
 import time
 from typing import Dict, Any, Tuple, Optional
 from rich.console import Console
@@ -11,11 +12,7 @@ console = Console()
 
 
 def fly_to_waypoint(
-    caller: ServiceCaller,
-    lat: float,
-    lon: float,
-    height: float,
-    max_speed: int = 12
+    caller: ServiceCaller, lat: float, lon: float, height: float, max_speed: int = 12
 ) -> Dict[str, Any]:
     """
     飞向单个航点（封装 fly_to_point）
@@ -34,18 +31,12 @@ def fly_to_waypoint(
         >>> fly_to_waypoint(caller, lat=39.0427514, lon=117.7238255, height=100.0)
     """
     return fly_to_point(
-        caller,
-        latitude=lat,
-        longitude=lon,
-        height=height,
-        max_speed=max_speed
+        caller, latitude=lat, longitude=lon, height=height, max_speed=max_speed
     )
 
 
 def monitor_flyto_progress(
-    mqtt: MQTTClient,
-    callsign: Optional[str] = None,
-    show_progress: bool = True
+    mqtt: MQTTClient, callsign: Optional[str] = None, show_progress: bool = True
 ) -> Tuple[Optional[str], Dict[str, Any]]:
     """
     监控 Fly-to 进度（通用原语）
@@ -66,19 +57,19 @@ def monitor_flyto_progress(
         >>>     print("到达航点！")
     """
     progress = mqtt.get_flyto_progress()
-    status = progress.get('status')
+    status = progress.get("status")
 
     # 完成状态（成功、失败、取消）
-    if status in ['wayline_ok', 'wayline_failed', 'wayline_cancel']:
+    if status in ["wayline_ok", "wayline_failed", "wayline_cancel"]:
         return status, progress
 
     # 进行中状态
-    if show_progress and status == 'wayline_progress':
-        remaining_distance = progress.get('remaining_distance')
-        remaining_time = progress.get('remaining_time')
+    if show_progress and status == "wayline_progress":
+        remaining_distance = progress.get("remaining_distance")
+        remaining_time = progress.get("remaining_time")
 
         if remaining_distance is not None and remaining_time is not None:
-            timestamp = time.strftime('%H:%M:%S')
+            timestamp = time.strftime("%H:%M:%S")
             if callsign:
                 console.print(
                     f"[dim]{timestamp}[/dim] | "

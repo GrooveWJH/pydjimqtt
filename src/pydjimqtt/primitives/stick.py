@@ -1,6 +1,7 @@
 """
 杆量控制原语
 """
+
 import time
 from ..services import send_stick_control
 from ..core import MQTTClient
@@ -13,7 +14,7 @@ def send_stick_repeatedly(
     throttle: int = 1024,
     yaw: int = 1024,
     duration: float = 1.0,
-    frequency: float = 10.0
+    frequency: float = 10.0,
 ) -> None:
     """
     重复发送杆量控制指令

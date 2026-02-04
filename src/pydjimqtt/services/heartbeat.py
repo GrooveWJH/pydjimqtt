@@ -1,6 +1,7 @@
 """
 DRC 心跳维持服务
 """
+
 import time
 import json
 import threading
@@ -10,10 +11,7 @@ from rich.console import Console
 console = Console()
 
 
-def start_heartbeat(
-    mqtt_client: MQTTClient,
-    interval: float = 0.2
-) -> threading.Thread:
+def start_heartbeat(mqtt_client: MQTTClient, interval: float = 0.2) -> threading.Thread:
     """
     启动 DRC 心跳后台线程
 
@@ -67,7 +65,9 @@ def start_heartbeat(
     thread.stop_flag = stop_flag  # 存储停止标志，供 stop_heartbeat 使用
     thread.start()
 
-    console.print(f"[green]✓ 心跳已启动 (间隔: {interval}s, 频率: {1.0/interval:.1f}Hz)[/green]")
+    console.print(
+        f"[green]✓ 心跳已启动 (间隔: {interval}s, 频率: {1.0 / interval:.1f}Hz)[/green]"
+    )
     return thread
 
 
@@ -78,7 +78,7 @@ def stop_heartbeat(thread: threading.Thread):
     Args:
         thread: 由 start_heartbeat 返回的线程对象
     """
-    if hasattr(thread, 'stop_flag'):
+    if hasattr(thread, "stop_flag"):
         thread.stop_flag.set()
         thread.join(timeout=5)
 

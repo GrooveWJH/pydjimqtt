@@ -1,6 +1,7 @@
 """
 任务执行框架 - 并行任务管理和状态监控
 """
+
 import time
 import threading
 from typing import Callable, Dict, Any, List, Optional, Tuple
@@ -23,7 +24,7 @@ class MissionRunner:
         mqtt: MQTTClient,
         caller: ServiceCaller,
         heartbeat: threading.Thread,
-        config: Dict[str, Any]
+        config: Dict[str, Any],
     ):
         """
         初始化任务执行器
@@ -43,7 +44,7 @@ class MissionRunner:
         self.running = False
         self.thread: Optional[threading.Thread] = None
 
-    def run(self, mission_func: Callable[['MissionRunner'], None]) -> None:
+    def run(self, mission_func: Callable[["MissionRunner"], None]) -> None:
         """
         在后台线程运行任务
 
@@ -52,13 +53,13 @@ class MissionRunner:
         """
         self.running = True
         self.thread = threading.Thread(
-            target=self._run_with_error_handling,
-            args=(mission_func,),
-            daemon=True
+            target=self._run_with_error_handling, args=(mission_func,), daemon=True
         )
         self.thread.start()
 
-    def _run_with_error_handling(self, mission_func: Callable[['MissionRunner'], None]) -> None:
+    def _run_with_error_handling(
+        self, mission_func: Callable[["MissionRunner"], None]
+    ) -> None:
         """带错误处理的任务执行"""
         try:
             mission_func(self)
@@ -103,16 +104,16 @@ def create_status_table(runners: List[MissionRunner]) -> Table:
 
         # 数据显示
         data_str = ""
-        if 'height' in runner.data and runner.data['height'] is not None:
+        if "height" in runner.data and runner.data["height"] is not None:
             data_str = f"高度: {runner.data['height']:.2f}m"
         elif runner.data:
             data_str = ", ".join(f"{k}: {v}" for k, v in list(runner.data.items())[:2])
 
         table.add_row(
-            runner.config['callsign'],
-            runner.config['sn'],
+            runner.config["callsign"],
+            runner.config["sn"],
             f"[{status_color}]{runner.status}[/{status_color}]",
-            data_str or "[dim]N/A[/dim]"
+            data_str or "[dim]N/A[/dim]",
         )
 
     return table
@@ -120,10 +121,11 @@ def create_status_table(runners: List[MissionRunner]) -> Table:
 
 def run_parallel_missions(
     connections: List[Tuple[MQTTClient, ServiceCaller, threading.Thread]],
-    mission_func: Callable[[MissionRunner], None] | List[Callable[[MissionRunner], None]],
+    mission_func: Callable[[MissionRunner], None]
+    | List[Callable[[MissionRunner], None]],
     uav_configs: List[Dict[str, Any]],
     countdown: int = 3,
-    show_monitor: bool = True
+    show_monitor: bool = True,
 ) -> List[MissionRunner]:
     """
     并行运行多个无人机任务并实时监控
@@ -181,7 +183,9 @@ def run_parallel_missions(
     # 实时监控（可选）
     if show_monitor:
         try:
-            with Live(create_status_table(runners), refresh_per_second=4, console=console) as live:
+            with Live(
+                create_status_table(runners), refresh_per_second=4, console=console
+            ) as live:
                 while True:
                     if all(not r.running for r in runners):
                         break
@@ -234,7 +238,13 @@ def cleanup_missions(runners: List[MissionRunner], hover_duration: float = 1.0) 
         if "完成" in runner.status or "任务完成" in runner.status:
             data_info = ""
             if runner.data:
-                data_info = ", " + ", ".join(f"{k}: {v}" for k, v in list(runner.data.items())[:2])
-            console.print(f"[green]✓ {runner.config['callsign']}: {runner.status}{data_info}[/green]")
+                data_info = ", " + ", ".join(
+                    f"{k}: {v}" for k, v in list(runner.data.items())[:2]
+                )
+            console.print(
+                f"[green]✓ {runner.config['callsign']}: {runner.status}{data_info}[/green]"
+            )
         else:
-            console.print(f"[yellow]⚠ {runner.config['callsign']}: {runner.status}[/yellow]")
+            console.print(
+                f"[yellow]⚠ {runner.config['callsign']}: {runner.status}[/yellow]"
+            )

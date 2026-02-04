@@ -43,7 +43,9 @@ def main() -> None:
         )
 
         while True:
-            status, _progress = monitor_flyto_progress(mqtt, callsign="drone", show_progress=True)
+            status, _progress = monitor_flyto_progress(
+                mqtt, callsign="drone", show_progress=True
+            )
             if status in {"wayline_ok", "wayline_failed", "wayline_cancel"}:
                 print(f"Fly-to finished with status: {status}")
                 break

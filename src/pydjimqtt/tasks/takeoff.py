@@ -1,6 +1,7 @@
 """
 起飞任务模板
 """
+
 import time
 from typing import Callable
 from rich.console import Console
@@ -13,9 +14,7 @@ console = Console()
 
 
 def create_takeoff_mission(
-    target_height: float,
-    height_tolerance: float = 0.1,
-    throttle_offset: int = 300
+    target_height: float, height_tolerance: float = 0.1, throttle_offset: int = 300
 ) -> Callable[[MissionRunner], None]:
     """
     创建起飞任务函数（工厂模式）
@@ -41,13 +40,19 @@ def create_takeoff_mission(
     """
     # 参数验证
     if target_height < 5.0:
-        raise ValueError(f"[red]✗ 安全限制：目标高度必须 >= 5.0m（当前值: {target_height}m）[/red]")
+        raise ValueError(
+            f"[red]✗ 安全限制：目标高度必须 >= 5.0m（当前值: {target_height}m）[/red]"
+        )
 
     if height_tolerance < 0 or height_tolerance > 1.0:
-        raise ValueError(f"[red]✗ 高度容差必须在 0-1.0m 之间（当前值: {height_tolerance}m）[/red]")
+        raise ValueError(
+            f"[red]✗ 高度容差必须在 0-1.0m 之间（当前值: {height_tolerance}m）[/red]"
+        )
 
     if throttle_offset < 0 or throttle_offset > 660:
-        raise ValueError(f"[red]✗ 油门偏移必须在 0-660 之间（当前值: {throttle_offset}）[/red]")
+        raise ValueError(
+            f"[red]✗ 油门偏移必须在 0-660 之间（当前值: {throttle_offset}）[/red]"
+        )
 
     def takeoff_mission(runner: MissionRunner) -> None:
         """
@@ -57,7 +62,7 @@ def create_takeoff_mission(
             runner: MissionRunner 实例
         """
         mqtt = runner.mqtt
-        callsign = runner.config['callsign']
+        callsign = runner.config["callsign"]
         target = target_height - height_tolerance
         throttle_up = 1024 + throttle_offset
 
@@ -65,33 +70,35 @@ def create_takeoff_mission(
         runner.status = "等待高度数据"
         wait_for_condition(lambda: mqtt.get_height() is not None, timeout=30)
         console.print(
-            f"[green]✓ [{callsign}] GPS数据就绪，起飞点高度: {mqtt.get_height():.2f}m[/green]")
+            f"[green]✓ [{callsign}] GPS数据就绪，起飞点高度: {mqtt.get_height():.2f}m[/green]"
+        )
 
         # 阶段2: 解锁（外八：左摇杆左下 + 右摇杆右下）
         runner.status = "解锁中"
         console.print(f"[cyan][{callsign}] 外八解锁，持续 3秒...[/cyan]")
         send_stick_repeatedly(
             mqtt,
-            roll=1684,      # 右摇杆右（横滚最右）
-            pitch=364,      # 右摇杆下（俯仰最后）
-            throttle=364,   # 左摇杆下（油门最低）
-            yaw=364,        # 左摇杆左（偏航最左）
+            roll=1684,  # 右摇杆右（横滚最右）
+            pitch=364,  # 右摇杆下（俯仰最后）
+            throttle=364,  # 左摇杆下（油门最低）
+            yaw=364,  # 左摇杆左（偏航最左）
             duration=3.0,
-            frequency=10
+            frequency=10,
         )
         console.print(f"[green]✓ [{callsign}] 解锁完成[/green]")
 
         # 阶段3: 上升（带无法运动检测）
         runner.status = "上升中"
         console.print(
-            f"[bold cyan][{callsign}] 开始上升，目标高度: {target_height}m[/bold cyan]")
+            f"[bold cyan][{callsign}] 开始上升，目标高度: {target_height}m[/bold cyan]"
+        )
 
         # 无法运动检测：记录初始状态
         start_time = time.time()
         last_check_time = start_time
         last_check_height = mqtt.get_relative_height() or 0.0
         stuck_threshold = 0.1  # 高度变化阈值（米）
-        check_interval = 5.0   # 检查间隔（秒）
+        check_interval = 5.0  # 检查间隔（秒）
 
         while runner.running:
             h = mqtt.get_relative_height()
@@ -99,12 +106,13 @@ def create_takeoff_mission(
                 time.sleep(0.1)
                 continue
 
-            runner.data['height'] = h
+            runner.data["height"] = h
 
             # 检查是否到达目标高度
             if h >= target:
                 console.print(
-                    f"[bold green]✓ [{callsign}] 到达目标高度: {h:.2f}m[/bold green]")
+                    f"[bold green]✓ [{callsign}] 到达目标高度: {h:.2f}m[/bold green]"
+                )
                 break
 
             # 无法运动检测：每5秒检查一次
@@ -115,16 +123,20 @@ def create_takeoff_mission(
                 if height_change < stuck_threshold:
                     # 5秒内高度变化小于0.1m，判定无法运动
                     console.print(
-                        f"[bold red]✗ [{callsign}] 检测到无法运动！[/bold red]")
+                        f"[bold red]✗ [{callsign}] 检测到无法运动！[/bold red]"
+                    )
+                    console.print(f"[yellow]  · 时间间隔: {check_interval}s[/yellow]")
                     console.print(
-                        f"[yellow]  · 时间间隔: {check_interval}s[/yellow]")
+                        f"[yellow]  · 高度变化: {height_change:.3f}m (阈值: {stuck_threshold}m)[/yellow]"
+                    )
                     console.print(
-                        f"[yellow]  · 高度变化: {height_change:.3f}m (阈值: {stuck_threshold}m)[/yellow]")
-                    console.print(
-                        f"[yellow]  · 当前高度: {h:.2f}m → 目标: {target_height}m[/yellow]")
+                        f"[yellow]  · 当前高度: {h:.2f}m → 目标: {target_height}m[/yellow]"
+                    )
 
                     # 停止发送杆量，归中遥杆
-                    console.print(f"[yellow][{callsign}] 停止上升，归中遥杆...[/yellow]")
+                    console.print(
+                        f"[yellow][{callsign}] 停止上升，归中遥杆...[/yellow]"
+                    )
                     send_stick_repeatedly(mqtt, duration=1.0, frequency=10)
 
                     # 标记失败并退出
@@ -147,8 +159,9 @@ def create_takeoff_mission(
         send_stick_repeatedly(mqtt, duration=5.0, frequency=10)
 
         runner.status = "起飞完成"
-        final_height = runner.data.get('height', 0)
+        final_height = runner.data.get("height", 0)
         console.print(
-            f"[bold green]✓ [{callsign}] 起飞完成！最终高度: {final_height:.2f}m[/bold green]")
+            f"[bold green]✓ [{callsign}] 起飞完成！最终高度: {final_height:.2f}m[/bold green]"
+        )
 
     return takeoff_mission

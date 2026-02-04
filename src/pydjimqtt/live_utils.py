@@ -5,6 +5,7 @@ DJI SDK 直播相关高级工具
 - 带详细日志的直播推流控制
 - 键盘变焦控制循环
 """
+
 import time
 import threading
 import uuid
@@ -21,7 +22,7 @@ def start_live(
     mqtt_client,
     rtmp_url: str,
     video_index: str = "normal-0",
-    video_quality: int = 0
+    video_quality: int = 0,
 ) -> Optional[str]:
     """
     开始直播推流（带详细 MQTT 消息打印）
@@ -45,18 +46,20 @@ def start_live(
 
     # 构建 video_id
     from .utils import build_video_id
+
     video_id = build_video_id(mqtt_client, video_index)
     console.print(f"[cyan]Video ID:[/cyan] {video_id}")
     console.print(f"[cyan]RTMP URL:[/cyan] {rtmp_url}")
     console.print(
-        f"[cyan]视频质量:[/cyan] {['自适应', '流畅', '标清', '高清', '超清'][video_quality]}")
+        f"[cyan]视频质量:[/cyan] {['自适应', '流畅', '标清', '高清', '超清'][video_quality]}"
+    )
 
     # 构造请求数据
     request_data = {
         "url": rtmp_url,
         "url_type": 1,  # RTMP
         "video_id": video_id,
-        "video_quality": video_quality
+        "video_quality": video_quality,
     }
 
     # 构造完整的 MQTT 请求消息（模拟）
@@ -66,7 +69,7 @@ def start_live(
         "data": request_data,
         "tid": tid,
         "timestamp": int(time.time() * 1000),
-        "method": "live_start_push"
+        "method": "live_start_push",
     }
 
     # 打印发送的请求
@@ -82,26 +85,27 @@ def start_live(
             "data": result,
             "tid": tid,
             "timestamp": int(time.time() * 1000),
-            "method": "live_start_push"
+            "method": "live_start_push",
         }
 
         # 打印接收的响应
-        print_json_message("📥 接收 MQTT 响应 (live_start_push)",
-                           full_response, "green")
+        print_json_message(
+            "📥 接收 MQTT 响应 (live_start_push)", full_response, "green"
+        )
 
         # 判定成功：data.result == 0
-        if result.get('result') == 0:
+        if result.get("result") == 0:
             console.print("\n[bold green]✓ 直播推流已启动！[/bold green]")
 
             # 显示额外信息（如果有）
-            output = result.get('output', {})
+            output = result.get("output", {})
             if output:
                 console.print(f"[dim]输出信息: {output}[/dim]")
 
             return video_id
         else:
-            error_code = result.get('result', 'unknown')
-            error_msg = result.get('message', '无错误信息')
+            error_code = result.get("result", "unknown")
+            error_msg = result.get("message", "无错误信息")
             console.print("\n[bold red]✗ 直播推流失败[/bold red]")
             console.print(f"[red]错误码: {error_code}[/red]")
             console.print(f"[red]错误信息: {error_msg}[/red]")
@@ -141,7 +145,7 @@ def stop_live(caller, video_id: str) -> bool:
         "data": request_data,
         "tid": tid,
         "timestamp": int(time.time() * 1000),
-        "method": "live_stop_push"
+        "method": "live_stop_push",
     }
 
     # 打印发送的请求
@@ -156,25 +160,24 @@ def stop_live(caller, video_id: str) -> bool:
             "data": result,
             "tid": tid,
             "timestamp": int(time.time() * 1000),
-            "method": "live_stop_push"
+            "method": "live_stop_push",
         }
 
         # 打印接收的响应
-        print_json_message("📥 接收 MQTT 响应 (live_stop_push)",
-                           full_response, "green")
+        print_json_message("📥 接收 MQTT 响应 (live_stop_push)", full_response, "green")
 
         # 判定成功：data.result == 0
-        if result.get('result') == 0:
+        if result.get("result") == 0:
             console.print("\n[bold green]✓ 直播推流已停止！[/bold green]")
 
             # 显示额外信息（如果有）
-            output = result.get('output', {})
+            output = result.get("output", {})
             if output:
                 console.print(f"[dim]输出信息: {output}[/dim]")
             return True
         else:
-            error_code = result.get('result', 'unknown')
-            error_msg = result.get('message', '无错误信息')
+            error_code = result.get("result", "unknown")
+            error_msg = result.get("message", "无错误信息")
             console.print("\n[bold red]✗ 停止直播失败[/bold red]")
             console.print(f"[red]错误码: {error_code}[/red]")
             console.print(f"[red]错误信息: {error_msg}[/red]")
@@ -215,10 +218,7 @@ def set_live_quality(caller, video_id: str, video_quality: int) -> bool:
     console.print(f"[cyan]清晰度:[/cyan] {quality_name}")
 
     # 构造请求数据
-    request_data = {
-        "video_id": video_id,
-        "video_quality": video_quality
-    }
+    request_data = {"video_id": video_id, "video_quality": video_quality}
 
     # 构造完整的 MQTT 请求消息（模拟）
     tid = str(uuid.uuid4())
@@ -227,7 +227,7 @@ def set_live_quality(caller, video_id: str, video_quality: int) -> bool:
         "data": request_data,
         "tid": tid,
         "timestamp": int(time.time() * 1000),
-        "method": "live_set_quality"
+        "method": "live_set_quality",
     }
 
     # 打印发送的请求
@@ -242,25 +242,28 @@ def set_live_quality(caller, video_id: str, video_quality: int) -> bool:
             "data": result,
             "tid": tid,
             "timestamp": int(time.time() * 1000),
-            "method": "live_set_quality"
+            "method": "live_set_quality",
         }
 
         # 打印接收的响应
-        print_json_message("📥 接收 MQTT 响应 (live_set_quality)",
-                           full_response, "green")
+        print_json_message(
+            "📥 接收 MQTT 响应 (live_set_quality)", full_response, "green"
+        )
 
         # 判定成功：data.result == 0
-        if result.get('result') == 0:
-            console.print(f"\n[bold green]✓ 清晰度已设置为 {quality_name}！[/bold green]")
+        if result.get("result") == 0:
+            console.print(
+                f"\n[bold green]✓ 清晰度已设置为 {quality_name}！[/bold green]"
+            )
 
             # 显示额外信息（如果有）
-            output = result.get('output', {})
+            output = result.get("output", {})
             if output:
                 console.print(f"[dim]输出信息: {output}[/dim]")
             return True
         else:
-            error_code = result.get('result', 'unknown')
-            error_msg = result.get('message', '无错误信息')
+            error_code = result.get("result", "unknown")
+            error_msg = result.get("message", "无错误信息")
             console.print("\n[bold red]✗ 设置清晰度失败[/bold red]")
             console.print(f"[red]错误码: {error_code}[/red]")
             console.print(f"[red]错误信息: {error_msg}[/red]")
@@ -272,9 +275,7 @@ def set_live_quality(caller, video_id: str, video_quality: int) -> bool:
 
 
 def zoom_control_loop(
-    mqtt_client,
-    payload_index: str,
-    camera_type: str = "zoom"
+    mqtt_client, payload_index: str, camera_type: str = "zoom"
 ) -> bool:
     """
     键盘控制变焦循环
@@ -308,7 +309,9 @@ def zoom_control_loop(
     console.print("  [green]↑[/green] - 放大 (zoom in)")
     console.print("  [green]↓[/green] - 缩小 (zoom out)")
     console.print("  [red]q[/red] 或 [red]ESC[/red] - 退出并停止直播")
-    console.print(f"\n[dim]当前变焦: {zoom_factor}x (范围: {min_zoom}-{max_zoom}x)[/dim]\n")
+    console.print(
+        f"\n[dim]当前变焦: {zoom_factor}x (范围: {min_zoom}-{max_zoom}x)[/dim]\n"
+    )
 
     stop_flag = threading.Event()
 
@@ -320,27 +323,35 @@ def zoom_control_loop(
             try:
                 key = get_key()
 
-                if key == 'UP':
+                if key == "UP":
                     # 放大
                     new_zoom = min(zoom_factor + zoom_step, max_zoom)
                     if new_zoom != zoom_factor:
                         zoom_factor = new_zoom
-                        console.print(f"[cyan]↑[/cyan] 放大至 [bold green]{zoom_factor:.1f}x[/bold green]")
-                        set_camera_zoom(mqtt_client, payload_index, zoom_factor, camera_type)
+                        console.print(
+                            f"[cyan]↑[/cyan] 放大至 [bold green]{zoom_factor:.1f}x[/bold green]"
+                        )
+                        set_camera_zoom(
+                            mqtt_client, payload_index, zoom_factor, camera_type
+                        )
                     else:
                         console.print(f"[yellow]已达到最大变焦 ({max_zoom}x)[/yellow]")
 
-                elif key == 'DOWN':
+                elif key == "DOWN":
                     # 缩小
                     new_zoom = max(zoom_factor - zoom_step, min_zoom)
                     if new_zoom != zoom_factor:
                         zoom_factor = new_zoom
-                        console.print(f"[cyan]↓[/cyan] 缩小至 [bold green]{zoom_factor:.1f}x[/bold green]")
-                        set_camera_zoom(mqtt_client, payload_index, zoom_factor, camera_type)
+                        console.print(
+                            f"[cyan]↓[/cyan] 缩小至 [bold green]{zoom_factor:.1f}x[/bold green]"
+                        )
+                        set_camera_zoom(
+                            mqtt_client, payload_index, zoom_factor, camera_type
+                        )
                     else:
                         console.print(f"[yellow]已达到最小变焦 ({min_zoom}x)[/yellow]")
 
-                elif key in ['q', 'Q', 'ESC']:
+                elif key in ["q", "Q", "ESC"]:
                     console.print("\n[yellow]退出变焦控制模式[/yellow]")
                     stop_flag.set()
                     break

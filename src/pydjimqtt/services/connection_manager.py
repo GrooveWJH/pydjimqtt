@@ -11,6 +11,7 @@ DRC 连接管理器 - 自动重连机制
 - 使用后台线程监控连接状态
 - 状态机模型：online → reconnecting → online/offline
 """
+
 import time
 import threading
 from typing import Dict, Any, Optional, Callable
@@ -25,9 +26,10 @@ console = Console()
 
 class ConnectionState:
     """连接状态枚举"""
-    ONLINE = 'online'  # 在线
-    RECONNECTING = 'reconnecting'  # 重连中
-    OFFLINE = 'offline'  # 离线
+
+    ONLINE = "online"  # 在线
+    RECONNECTING = "reconnecting"  # 重连中
+    OFFLINE = "offline"  # 离线
 
 
 class DRCConnectionManager:
@@ -52,7 +54,7 @@ class DRCConnectionManager:
         hsi_frequency: int = 10,
         offline_timeout: float = 2.0,
         reconnect_attempts: int = 10,
-        reconnect_interval: float = 1.0
+        reconnect_interval: float = 1.0,
     ):
         """
         初始化连接管理器
@@ -130,16 +132,16 @@ class DRCConnectionManager:
             if self.state != new_state:
                 old_state = self.state
                 self.state = new_state
-                callsign = self.uav_config.get('callsign', 'UAV')
-                console.print(f"[bright_yellow][{callsign}] 状态变化: {old_state} → {new_state}[/bright_yellow]")
+                callsign = self.uav_config.get("callsign", "UAV")
+                console.print(
+                    f"[bright_yellow][{callsign}] 状态变化: {old_state} → {new_state}[/bright_yellow]"
+                )
 
                 # 触发回调（在锁外执行，避免死锁）
                 if self.on_state_change:
                     # 在新线程中执行回调，避免阻塞监控线程
                     threading.Thread(
-                        target=self.on_state_change,
-                        args=(new_state,),
-                        daemon=True
+                        target=self.on_state_change, args=(new_state,), daemon=True
                     ).start()
 
     def _reconnect_drc(self) -> bool:
@@ -149,34 +151,35 @@ class DRCConnectionManager:
         Returns:
             是否成功重连
         """
-        callsign = self.uav_config.get('callsign', 'UAV')
+        callsign = self.uav_config.get("callsign", "UAV")
 
         try:
             # 1. 请求控制权
             console.print(f"[bright_cyan][{callsign}] 请求控制权...[/bright_cyan]")
             request_control_auth(
                 self.caller,
-                user_id=self.uav_config.get('user_id', 'pilot'),
-                user_callsign=callsign
+                user_id=self.uav_config.get("user_id", "pilot"),
+                user_callsign=callsign,
             )
 
             # 2. 进入 DRC 模式
             console.print(f"[bright_cyan][{callsign}] 进入 DRC 模式...[/bright_cyan]")
             import uuid
+
             random_suffix = str(uuid.uuid4())[:3]
             mqtt_broker_config = {
-                'address': f"{self.mqtt_config['host']}:{self.mqtt_config['port']}",
-                'client_id': f"drc-{self.uav_config['sn']}-{random_suffix}",
-                'username': self.mqtt_config['username'],
-                'password': self.mqtt_config['password'],
-                'expire_time': int(time.time()) + 3600,
-                'enable_tls': self.mqtt_config.get('enable_tls', False)
+                "address": f"{self.mqtt_config['host']}:{self.mqtt_config['port']}",
+                "client_id": f"drc-{self.uav_config['sn']}-{random_suffix}",
+                "username": self.mqtt_config["username"],
+                "password": self.mqtt_config["password"],
+                "expire_time": int(time.time()) + 3600,
+                "enable_tls": self.mqtt_config.get("enable_tls", False),
             }
             enter_drc_mode(
                 self.caller,
                 mqtt_broker=mqtt_broker_config,
                 osd_frequency=self.osd_frequency,
-                hsi_frequency=self.hsi_frequency
+                hsi_frequency=self.hsi_frequency,
             )
 
             # 3. 重启心跳
@@ -202,7 +205,7 @@ class DRCConnectionManager:
         3. 重连最多尝试 reconnect_attempts 次
         4. 重连成功后恢复 online 状态
         """
-        callsign = self.uav_config.get('callsign', 'UAV')
+        callsign = self.uav_config.get("callsign", "UAV")
 
         while not self.stop_flag.is_set():
             time.sleep(0.5)  # 每 0.5 秒检查一次
@@ -214,7 +217,9 @@ class DRCConnectionManager:
 
                 if current_state == ConnectionState.ONLINE:
                     # 第一次检测到离线，开始重连
-                    console.print(f"[bright_yellow]⚠ [{callsign}] 检测到离线（{self.offline_timeout}秒无数据）[/bright_yellow]")
+                    console.print(
+                        f"[bright_yellow]⚠ [{callsign}] 检测到离线（{self.offline_timeout}秒无数据）[/bright_yellow]"
+                    )
                     self._set_state(ConnectionState.RECONNECTING)
 
                     # 尝试重连
@@ -222,7 +227,9 @@ class DRCConnectionManager:
                         if self.stop_flag.is_set():
                             break
 
-                        console.print(f"[bright_cyan][{callsign}] 重连尝试 {attempt}/{self.reconnect_attempts}...[/bright_cyan]")
+                        console.print(
+                            f"[bright_cyan][{callsign}] 重连尝试 {attempt}/{self.reconnect_attempts}...[/bright_cyan]"
+                        )
 
                         if self._reconnect_drc():
                             # 重连成功
@@ -234,7 +241,9 @@ class DRCConnectionManager:
                             time.sleep(self.reconnect_interval)
                     else:
                         # 所有重连尝试均失败
-                        console.print(f"[bright_red]✗ [{callsign}] 重连失败（{self.reconnect_attempts}次尝试）[/bright_red]")
+                        console.print(
+                            f"[bright_red]✗ [{callsign}] 重连失败（{self.reconnect_attempts}次尝试）[/bright_red]"
+                        )
                         self._set_state(ConnectionState.OFFLINE)
 
             else:
@@ -257,7 +266,7 @@ class DRCConnectionManager:
         self.monitor_thread = threading.Thread(target=self._monitor_loop, daemon=True)
         self.monitor_thread.start()
 
-        callsign = self.uav_config.get('callsign', 'UAV')
+        callsign = self.uav_config.get("callsign", "UAV")
         console.print(f"[bright_green]✓ [{callsign}] 连接管理器已启动[/bright_green]")
 
     def stop(self):
@@ -270,5 +279,5 @@ class DRCConnectionManager:
         if self.heartbeat_thread:
             stop_heartbeat(self.heartbeat_thread)
 
-        callsign = self.uav_config.get('callsign', 'UAV')
+        callsign = self.uav_config.get("callsign", "UAV")
         console.print(f"[bright_yellow][{callsign}] 连接管理器已停止[/bright_yellow]")

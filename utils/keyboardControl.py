@@ -53,6 +53,7 @@ def _resolve_joystick_app():
             sys.path.insert(0, str(src_root))
         try:
             from keyboard import JoystickApp  # type: ignore
+
             return JoystickApp
         except ImportError as e:
             if (

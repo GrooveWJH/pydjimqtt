@@ -11,6 +11,7 @@ DJI 无人机 RTMP 直播工具 - 多机版本
 
 import sys
 import os
+
 # Add parent directory (pythonSDK/) to path to import pydjimqtt module
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
@@ -36,61 +37,61 @@ console = Console()
 
 # MQTT 配置
 MQTT_CONFIG = {
-    'host': '81.70.222.38',
+    "host": "81.70.222.38",
     # 'host': '192.168.31.73',
-    'port': 1883,
-    'username': 'dji',
-    'password': 'lab605605'
+    "port": 1883,
+    "username": "dji",
+    "password": "lab605605",
 }
 
 # 无人机配置列表（每架无人机有独立的直播地址）
 UAV_CONFIGS = [
     {
-        'name': 'Drone001',
-        'sn': '9N9CN2J0012CXY',
-        'user_id': 'pilot_1',
-        'callsign': 'Alpha',
-        'rtmp_stream_key': 'Drone001',  # RTMP 流名称（拼接到 base_url 后）
-        'video_index': 'normal-0',
-        'video_quality': 4,  # 0=自适应, 1=流畅, 2=标清, 3=高清, 4=超清
-        'zoom': {
-            'enabled': True,  # 是否启用变焦控制
-            'initial': 1,  # 初始变焦倍数
-            'step': 1,  # 变焦步进
-        }
+        "name": "Drone001",
+        "sn": "9N9CN2J0012CXY",
+        "user_id": "pilot_1",
+        "callsign": "Alpha",
+        "rtmp_stream_key": "Drone001",  # RTMP 流名称（拼接到 base_url 后）
+        "video_index": "normal-0",
+        "video_quality": 4,  # 0=自适应, 1=流畅, 2=标清, 3=高清, 4=超清
+        "zoom": {
+            "enabled": True,  # 是否启用变焦控制
+            "initial": 1,  # 初始变焦倍数
+            "step": 1,  # 变焦步进
+        },
     },
     {
-        'name': 'Drone002',
-        'sn': '9N9CN8400164WH',
-        'user_id': 'pilot_2',
-        'callsign': 'Bravo',
-        'rtmp_stream_key': 'Drone002',
-        'video_index': 'normal-0',
-        'video_quality': 4,
-        'zoom': {
-            'enabled': True,
-            'initial': 1,
-            'step': 1,
-        }
+        "name": "Drone002",
+        "sn": "9N9CN8400164WH",
+        "user_id": "pilot_2",
+        "callsign": "Bravo",
+        "rtmp_stream_key": "Drone002",
+        "video_index": "normal-0",
+        "video_quality": 4,
+        "zoom": {
+            "enabled": True,
+            "initial": 1,
+            "step": 1,
+        },
     },
     {
-        'name': 'Drone003',
-        'sn': '9N9CN180011TJN',
-        'user_id': 'pilot_3',
-        'callsign': 'Charlie',
-        'rtmp_stream_key': 'Drone003',
-        'video_index': 'normal-0',
-        'video_quality': 4,
-        'zoom': {
-            'enabled': True,
-            'initial': 1,
-            'step': 1,
-        }
+        "name": "Drone003",
+        "sn": "9N9CN180011TJN",
+        "user_id": "pilot_3",
+        "callsign": "Charlie",
+        "rtmp_stream_key": "Drone003",
+        "video_index": "normal-0",
+        "video_quality": 4,
+        "zoom": {
+            "enabled": True,
+            "initial": 1,
+            "step": 1,
+        },
     },
 ]
 
 # RTMP 服务器配置
-RTMP_BASE_URL = 'rtmp://81.70.222.38:1935/live/'  # 基础 URL
+RTMP_BASE_URL = "rtmp://81.70.222.38:1935/live/"  # 基础 URL
 
 # DRC 配置
 OSD_FREQUENCY = 1  # Hz
@@ -102,7 +103,7 @@ STOP_LIVE_ON_EXIT = True
 # ========== 全局状态 ==========
 
 # 画质名称映射
-QUALITY_NAMES = {0: '自适应', 1: '流畅', 2: '标清', 3: '高清', 4: '超清'}
+QUALITY_NAMES = {0: "自适应", 1: "流畅", 2: "标清", 3: "高清", 4: "超清"}
 
 # 分离固定连接和可变状态
 connections = {}  # {sn: {'mqtt': ..., 'caller': ..., 'heartbeat': ..., 'config': ...}}
@@ -116,8 +117,11 @@ stop_event = threading.Event()  # 用于停止所有控制线程
 
 def display_uav_list():
     """显示无人机列表"""
-    table = Table(title="[bold cyan]可用无人机列表[/bold cyan]",
-                  show_header=True, header_style="bold magenta")
+    table = Table(
+        title="[bold cyan]可用无人机列表[/bold cyan]",
+        show_header=True,
+        header_style="bold magenta",
+    )
     table.add_column("编号", style="cyan", justify="center")
     table.add_column("名称", style="green")
     table.add_column("序列号", style="yellow")
@@ -125,7 +129,7 @@ def display_uav_list():
 
     for i, uav in enumerate(UAV_CONFIGS, 1):
         stream_url = f"{RTMP_BASE_URL}{uav['rtmp_stream_key']}"
-        table.add_row(str(i), uav['name'], uav['sn'], stream_url)
+        table.add_row(str(i), uav["name"], uav["sn"], stream_url)
 
     console.print(table)
 
@@ -145,12 +149,12 @@ def select_uavs():
     else:
         # 让用户选择特定无人机
         indices = Prompt.ask(
-            "\n输入要启动的无人机编号（多个用逗号分隔，如 1,3）",
-            default="1"
+            "\n输入要启动的无人机编号（多个用逗号分隔，如 1,3）", default="1"
         )
-        selected_indices = [int(i.strip()) - 1 for i in indices.split(',')]
-        selected = [UAV_CONFIGS[i]
-                    for i in selected_indices if 0 <= i < len(UAV_CONFIGS)]
+        selected_indices = [int(i.strip()) - 1 for i in indices.split(",")]
+        selected = [
+            UAV_CONFIGS[i] for i in selected_indices if 0 <= i < len(UAV_CONFIGS)
+        ]
 
         console.print(f"\n[green]✓ 已选择 {len(selected)} 架无人机[/green]")
         return selected
@@ -168,7 +172,7 @@ def start_live_for_uav(mqtt, caller, config):
     Returns:
         video_id or None
     """
-    callsign = config['callsign']
+    callsign = config["callsign"]
 
     try:
         # 1. 等待相机数据
@@ -184,13 +188,14 @@ def start_live_for_uav(mqtt, caller, config):
             caller,
             mqtt,
             rtmp_url,
-            config['video_index'],
-            video_quality=0  # 永远用自适应启动
+            config["video_index"],
+            video_quality=0,  # 永远用自适应启动
         )
 
         if video_id_result:
             console.print(
-                f"[green]✓ [{callsign}] 直播已启动 (video_id: {video_id_result}, 质量: 自适应)[/green]")
+                f"[green]✓ [{callsign}] 直播已启动 (video_id: {video_id_result}, 质量: 自适应)[/green]"
+            )
             return video_id_result
         else:
             console.print(f"[red]✗ [{callsign}] 直播启动失败[/red]")
@@ -223,12 +228,14 @@ def read_key_nonblocking():
     Returns:
         str: 读取到的按键字符，如果没有按键返回 None
     """
-    if sys.platform == 'win32':
+    if sys.platform == "win32":
         import msvcrt
+
         if msvcrt.kbhit():
-            return msvcrt.getch().decode('utf-8')
+            return msvcrt.getch().decode("utf-8")
     else:
         import select
+
         dr, dw, de = select.select([sys.stdin], [], [], 0)
         if dr:
             return sys.stdin.read(1)
@@ -242,31 +249,33 @@ def change_all_quality(new_quality):
     Args:
         new_quality: 新的质量等级 (0-4)
     """
-    quality_name = QUALITY_NAMES.get(new_quality, '未知')
+    quality_name = QUALITY_NAMES.get(new_quality, "未知")
     console.print(
-        f"\n[bold cyan]切换所有直播到质量 {new_quality} ({quality_name})[/bold cyan]")
+        f"\n[bold cyan]切换所有直播到质量 {new_quality} ({quality_name})[/bold cyan]"
+    )
 
     success_count = 0
     total_count = 0
 
     for sn, state in live_states.items():
-        if not state['video_id']:
+        if not state["video_id"]:
             continue  # 跳过未启动的
 
         total_count += 1
         conn = connections[sn]
-        callsign = conn['config']['callsign']
+        callsign = conn["config"]["callsign"]
 
         try:
-            set_live_quality(conn['caller'], state['video_id'], new_quality)
-            state['quality'] = new_quality  # 更新状态
+            set_live_quality(conn["caller"], state["video_id"], new_quality)
+            state["quality"] = new_quality  # 更新状态
             success_count += 1
             console.print(f"  [green]✓ {callsign}[/green]")
         except Exception as e:
             console.print(f"  [red]✗ {callsign}: {e}[/red]")
 
     console.print(
-        f"[green]完成: {success_count}/{total_count} 架无人机已切换[/green]\n")
+        f"[green]完成: {success_count}/{total_count} 架无人机已切换[/green]\n"
+    )
 
     # 刷新显示
     display_live_status()
@@ -284,28 +293,29 @@ def toggle_all_lens():
     total_count = 0
 
     for sn, state in live_states.items():
-        if not state['video_id']:
+        if not state["video_id"]:
             continue  # 跳过未启动的
 
         total_count += 1
         conn = connections[sn]
-        callsign = conn['config']['callsign']
+        callsign = conn["config"]["callsign"]
 
         # 切换镜头类型
-        current_lens = state['lens_type']
-        new_lens = 'wide' if current_lens == 'zoom' else 'zoom'
-        lens_name = '广角' if new_lens == 'wide' else '变焦'
+        current_lens = state["lens_type"]
+        new_lens = "wide" if current_lens == "zoom" else "zoom"
+        lens_name = "广角" if new_lens == "wide" else "变焦"
 
         try:
-            change_live_lens(conn['caller'], state['video_id'], new_lens)
-            state['lens_type'] = new_lens  # 更新状态
+            change_live_lens(conn["caller"], state["video_id"], new_lens)
+            state["lens_type"] = new_lens  # 更新状态
             success_count += 1
             console.print(f"  [green]✓ {callsign}: {lens_name}[/green]")
         except Exception as e:
             console.print(f"  [red]✗ {callsign}: {e}[/red]")
 
     console.print(
-        f"[green]完成: {success_count}/{total_count} 架无人机已切换[/green]\n")
+        f"[green]完成: {success_count}/{total_count} 架无人机已切换[/green]\n"
+    )
 
     # 刷新显示
     display_live_status()
@@ -320,8 +330,8 @@ def adjust_all_zoom(direction: str):
 
     注意：仅在变焦镜头模式下可用，范围 1-112x
     """
-    step = 5 if direction == 'in' else -5
-    action_name = '增加' if direction == 'in' else '减少'
+    step = 5 if direction == "in" else -5
+    action_name = "增加" if direction == "in" else "减少"
 
     console.print(f"\n[bold cyan]{action_name}所有变焦倍数 ({step:+d}x)[/bold cyan]")
 
@@ -329,37 +339,38 @@ def adjust_all_zoom(direction: str):
     total_count = 0
 
     for sn, state in live_states.items():
-        if not state['video_id']:
+        if not state["video_id"]:
             continue  # 跳过未启动的
 
         # 仅在变焦模式下可用
-        if state['lens_type'] != 'zoom':
+        if state["lens_type"] != "zoom":
             continue
 
         total_count += 1
         conn = connections[sn]
-        callsign = conn['config']['callsign']
+        callsign = conn["config"]["callsign"]
 
         # 计算新的变焦倍数
-        current_zoom = state['zoom_factor']
+        current_zoom = state["zoom_factor"]
         new_zoom = max(1, min(112, current_zoom + step))  # 限制在 1-112 范围
 
         # 如果没有变化，跳过
         if new_zoom == current_zoom:
             console.print(
-                f"  [yellow]- {callsign}: 已达到{action_name}限制 ({current_zoom}x)[/yellow]")
+                f"  [yellow]- {callsign}: 已达到{action_name}限制 ({current_zoom}x)[/yellow]"
+            )
             continue
 
         try:
             # 获取 payload_index
-            payload_index = conn['mqtt'].get_payload_index() or "39-0-7"
+            payload_index = conn["mqtt"].get_payload_index() or "39-0-7"
 
-            set_camera_zoom(conn['mqtt'], payload_index,
-                            new_zoom, camera_type="zoom")
-            state['zoom_factor'] = new_zoom  # 更新状态
+            set_camera_zoom(conn["mqtt"], payload_index, new_zoom, camera_type="zoom")
+            state["zoom_factor"] = new_zoom  # 更新状态
             success_count += 1
             console.print(
-                f"  [green]✓ {callsign}: {current_zoom}x → {new_zoom}x[/green]")
+                f"  [green]✓ {callsign}: {current_zoom}x → {new_zoom}x[/green]"
+            )
         except Exception as e:
             console.print(f"  [red]✗ {callsign}: {e}[/red]")
 
@@ -367,7 +378,8 @@ def adjust_all_zoom(direction: str):
         console.print("[yellow]没有无人机处于变焦模式[/yellow]\n")
     else:
         console.print(
-            f"[green]完成: {success_count}/{total_count} 架无人机已调整[/green]\n")
+            f"[green]完成: {success_count}/{total_count} 架无人机已调整[/green]\n"
+        )
 
     # 刷新显示
     display_live_status()
@@ -393,9 +405,10 @@ def main_loop():
 
     # Unix/macOS: 设置终端为原始模式（非阻塞输入）
     old_settings = None
-    if sys.platform != 'win32':
+    if sys.platform != "win32":
         import termios
         import tty
+
         old_settings = termios.tcgetattr(sys.stdin)
         tty.setcbreak(sys.stdin.fileno())
 
@@ -404,15 +417,15 @@ def main_loop():
             key = read_key_nonblocking()
             if key:
                 # 画质控制 (0-4)
-                if key in '01234':
+                if key in "01234":
                     change_all_quality(int(key))
                 # 变焦控制 (z/x)
-                elif key.lower() == 'z':
-                    adjust_all_zoom('in')
-                elif key.lower() == 'x':
-                    adjust_all_zoom('out')
+                elif key.lower() == "z":
+                    adjust_all_zoom("in")
+                elif key.lower() == "x":
+                    adjust_all_zoom("out")
                 # 镜头切换 (o)
-                elif key.lower() == 'o':
+                elif key.lower() == "o":
                     toggle_all_lens()
 
             time.sleep(0.1)  # 100ms 轮询
@@ -420,13 +433,17 @@ def main_loop():
         # 恢复终端设置
         if old_settings:
             import termios
+
             termios.tcsetattr(sys.stdin, termios.TCSADRAIN, old_settings)
 
 
 def display_live_status():
     """显示所有无人机的直播状态"""
-    table = Table(title="[bold cyan]直播状态监控[/bold cyan]",
-                  show_header=True, header_style="bold magenta")
+    table = Table(
+        title="[bold cyan]直播状态监控[/bold cyan]",
+        show_header=True,
+        header_style="bold magenta",
+    )
     table.add_column("呼号", style="cyan")
     table.add_column("序列号", style="yellow")
     table.add_column("直播状态", style="green")
@@ -435,15 +452,15 @@ def display_live_status():
 
     for sn, state in live_states.items():
         conn = connections[sn]
-        callsign = conn['config']['callsign']
+        callsign = conn["config"]["callsign"]
 
-        if state['video_id']:
-            quality_name = QUALITY_NAMES[state['quality']]
+        if state["video_id"]:
+            quality_name = QUALITY_NAMES[state["quality"]]
             status = f"🟢 运行中 ({quality_name})"
 
             # 镜头和变焦信息
-            lens_name = '变焦' if state['lens_type'] == 'zoom' else '广角'
-            if state['lens_type'] == 'zoom':
+            lens_name = "变焦" if state["lens_type"] == "zoom" else "广角"
+            if state["lens_type"] == "zoom":
                 lens_info = f"{lens_name} {state['zoom_factor']}x"
             else:
                 lens_info = lens_name
@@ -458,6 +475,7 @@ def display_live_status():
 
 
 # ========== 主程序 ==========
+
 
 def main():
     console.print("\n" + "=" * 70)
@@ -475,25 +493,25 @@ def main():
         mqtt_config=MQTT_CONFIG,
         osd_frequency=OSD_FREQUENCY,
         hsi_frequency=HSI_FREQUENCY,
-        skip_drc_setup=True
+        skip_drc_setup=True,
     )
 
     console.print(f"\n[green]✓ 已连接 {len(conn_list)} 架无人机[/green]\n")
 
     # 初始化全局状态：分离连接和状态
     for (mqtt, caller, heartbeat), config in zip(conn_list, selected_uavs):
-        sn = config['sn']
+        sn = config["sn"]
         connections[sn] = {
-            'mqtt': mqtt,
-            'caller': caller,
-            'heartbeat': heartbeat,
-            'config': config
+            "mqtt": mqtt,
+            "caller": caller,
+            "heartbeat": heartbeat,
+            "config": config,
         }
         live_states[sn] = {
-            'video_id': None,
-            'quality': 0,  # 初始质量：自适应
-            'lens_type': 'zoom',  # 初始镜头：变焦
-            'zoom_factor': 2  # 初始变焦倍数：2x
+            "video_id": None,
+            "quality": 0,  # 初始质量：自适应
+            "lens_type": "zoom",  # 初始镜头：变焦
+            "zoom_factor": 2,  # 初始变焦倍数：2x
         }
 
     try:
@@ -501,13 +519,11 @@ def main():
         console.print("[bold cyan]========== 启动直播推流 ==========[/bold cyan]\n")
 
         import concurrent.futures
+
         with concurrent.futures.ThreadPoolExecutor() as executor:
             futures = {
                 executor.submit(
-                    start_live_for_uav,
-                    conn['mqtt'],
-                    conn['caller'],
-                    conn['config']
+                    start_live_for_uav, conn["mqtt"], conn["caller"], conn["config"]
                 ): sn
                 for sn, conn in connections.items()
             }
@@ -516,7 +532,7 @@ def main():
                 sn = futures[future]
                 try:
                     video_id = future.result()
-                    live_states[sn]['video_id'] = video_id
+                    live_states[sn]["video_id"] = video_id
                 except Exception as e:
                     console.print(f"[red]✗ {sn} 启动异常: {e}[/red]")
 
@@ -538,11 +554,11 @@ def main():
         if STOP_LIVE_ON_EXIT:
             console.print("[cyan]停止直播推流...[/cyan]")
             for sn, state in live_states.items():
-                if state['video_id']:
+                if state["video_id"]:
                     conn = connections[sn]
-                    callsign = conn['config']['callsign']
+                    callsign = conn["config"]["callsign"]
                     try:
-                        stop_live(conn['caller'], state['video_id'])
+                        stop_live(conn["caller"], state["video_id"])
                         console.print(f"[green]✓ [{callsign}] 直播已停止[/green]")
                     except Exception as e:
                         console.print(f"[red]✗ [{callsign}] 停止直播失败: {e}[/red]")
@@ -550,10 +566,10 @@ def main():
         # 停止心跳和 MQTT 连接
         console.print("[cyan]断开连接...[/cyan]")
         for sn, conn in connections.items():
-            callsign = conn['config']['callsign']
+            callsign = conn["config"]["callsign"]
             try:
-                stop_heartbeat(conn['heartbeat'])
-                conn['mqtt'].disconnect()
+                stop_heartbeat(conn["heartbeat"])
+                conn["mqtt"].disconnect()
                 console.print(f"[green]✓ [{callsign}] 连接已断开[/green]")
             except Exception as e:
                 console.print(f"[red]✗ [{callsign}] 断开失败: {e}[/red]")
@@ -567,4 +583,5 @@ if __name__ == "__main__":
     except Exception as e:
         console.print(f"\n[bold red]程序异常: {e}[/bold red]")
         import traceback
+
         console.print(f"[dim]{traceback.format_exc()}[/dim]")
