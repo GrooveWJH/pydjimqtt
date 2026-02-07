@@ -127,6 +127,12 @@ class MQTTClient:
             console.print(f"[red]✗[/red] MQTT 连接异常: {e}")
             raise
 
+        if self._is_virtual_gateway():
+            console.print(
+                "[yellow]⚠[/yellow] 虚拟网关模式：跳过默认产品主题订阅，等待上层自定义订阅"
+            )
+            return
+
         # 订阅响应主题
         reply_topic = f"thing/product/{self.gateway_sn}/services_reply"
         self.client.subscribe(reply_topic, qos=1)
@@ -146,6 +152,10 @@ class MQTTClient:
         events_topic = f"thing/product/{self.gateway_sn}/events"
         self.client.subscribe(events_topic, qos=0)
         console.print(f"[green]✓[/green] 已订阅: {events_topic}")
+
+    def _is_virtual_gateway(self) -> bool:
+        """占位网关用于本地调试，不应订阅产品主题。"""
+        return isinstance(self.gateway_sn, str) and self.gateway_sn.startswith("__")
 
     def disconnect(self):
         """断开连接"""
