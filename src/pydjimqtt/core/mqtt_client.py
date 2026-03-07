@@ -4,6 +4,7 @@ MQTT 客户端 - 负责连接管理和消息收发
 
 import json
 import threading
+import time
 from typing import Dict, Any, Optional
 from concurrent.futures import Future
 import paho.mqtt.client as mqtt
@@ -72,8 +73,9 @@ class MQTTClient:
         self._osd_timestamps = []  # 2秒窗口内的所有 OSD 消息时间戳
         self._last_osd_time = 0.0  # 最后一次 OSD 消息时间（用于离线检测）
         self._freq_window = 2.0  # 频率计算窗口大小（秒）
-        # DEBUG 开关（默认关闭，减少日志污染）
-        self.enable_service_debug = False  # 启用后打印服务响应的完整 JSON
+        # 连接可观测性（供上层排障）
+        self._last_disconnect_rc: Optional[int] = None
+        self._last_disconnect_at: Optional[float] = None
 
     def connect(self):
         """建立 MQTT 连接"""
@@ -102,7 +104,14 @@ class MQTTClient:
                 error_msg = error_messages.get(rc, f"未知错误 (rc={rc})")
                 console.print(f"[red]✗[/red] MQTT 连接失败: {error_msg}")
 
+        def on_disconnect(client, userdata, rc):
+            self._last_disconnect_rc = int(rc)
+            self._last_disconnect_at = time.time()
+            if rc != 0:
+                console.print(f"[yellow]MQTT 非正常断开 (rc={rc})[/yellow]")
+
         self.client.on_connect = on_connect
+        self.client.on_disconnect = on_disconnect
 
         console.print(
             f"[cyan]连接 MQTT: {self.config['host']}:{self.config['port']}[/cyan]"
@@ -163,6 +172,20 @@ class MQTTClient:
             self.client.loop_stop()
             self.client.disconnect()
             console.print("[yellow]MQTT 连接已断开[/yellow]")
+
+    def get_connection_diagnostics(self) -> Dict[str, Any]:
+        """返回 MQTT 连接诊断信息（只读）。"""
+        connected = False
+        if self.client is not None:
+            try:
+                connected = bool(self.client.is_connected())
+            except Exception:
+                connected = False
+        return {
+            "connected": connected,
+            "last_disconnect_rc": self._last_disconnect_rc,
+            "last_disconnect_at": self._last_disconnect_at,
+        }
 
     def cleanup_request(self, tid: str):
         """清理挂起的请求（用于超时处理）"""
@@ -446,7 +469,7 @@ class MQTTClient:
             # bid (business id) 和 tid (transaction id):
             # DJI 协议要求两个字段，实测中两者可以相同
             "bid": tid,
-            "timestamp": int(__import__("time").time() * 1000),
+            "timestamp": int(time.time() * 1000),
             "method": method,
             "data": data,
         }
@@ -581,16 +604,6 @@ class MQTTClient:
             if not tid:
                 return
 
-            # 🔍 DEBUG: 打印完整的服务响应（仅在启用时）
-            if self.enable_service_debug:
-                method = payload.get("method", "unknown")
-                console.print("[bright_yellow]📦 MQTT 服务响应 DEBUG[/bright_yellow]")
-                console.print(f"  [cyan]Topic:[/cyan] {msg.topic}")
-                console.print(f"  [cyan]TID:[/cyan] {tid[:8]}...")
-                console.print(f"  [cyan]Method:[/cyan] {method}")
-                console.print("  [cyan]完整 Payload:[/cyan]")
-                console.print(f"{json.dumps(payload, indent=2, ensure_ascii=False)}")
-
             with self.lock:
                 future = self.pending_requests.pop(tid, None)
 
@@ -600,17 +613,65 @@ class MQTTClient:
                 # 格式2（简化）：data.result != 0 表示错误
                 info = payload.get("info", {})
                 data = payload.get("data", {})
+                top_result = payload.get("result")
+                info_code = info.get("code") if isinstance(info, dict) else None
+                data_result = data.get("result") if isinstance(data, dict) else None
 
                 # 优先检查 info.code（标准格式）
-                if info and info.get("code") != 0:
+                if info and info_code not in (None, 0):
                     error_msg = info.get("message", "Unknown error")
-                    console.print(f"[red]✗[/red] 错误: {error_msg}")
-                    future.set_exception(Exception(error_msg))
+                    console.print(
+                        "[red]✗[/red] 服务调用错误 "
+                        f"(method={payload.get('method')}, tid={tid[:8]}..., info.code={info_code}, message={error_msg})"
+                    )
+                    future.set_exception(
+                        Exception(f"{error_msg} (info.code={info_code}, tid={tid})")
+                    )
+                # 再检查 payload.result（部分接口可能返回在顶层）
+                elif top_result not in (None, 0):
+                    output = data.get("output", {}) if isinstance(data, dict) else {}
+                    error_msg = (
+                        payload.get("message")
+                        or (output.get("msg") if isinstance(output, dict) else None)
+                        or (
+                            output.get("message")
+                            if isinstance(output, dict)
+                            else None
+                        )
+                        or "Unknown error"
+                    )
+                    console.print(
+                        "[red]✗[/red] 服务调用错误 "
+                        f"(method={payload.get('method')}, tid={tid[:8]}..., result={top_result}, message={error_msg})"
+                    )
+                    future.set_exception(
+                        Exception(f"{error_msg} (result={top_result}, tid={tid})")
+                    )
                 # 再检查 data.result（简化格式，如 drc_mode_enter）
-                elif "result" in data and data.get("result") != 0:
-                    error_msg = data.get("output", {}).get("msg", "Unknown error")
-                    console.print(f"[red]✗[/red] 错误: {error_msg}")
-                    future.set_exception(Exception(error_msg))
+                elif "result" in data and data_result != 0:
+                    output = data.get("output", {})
+                    error_msg = (
+                        data.get("message")
+                        or (output.get("msg") if isinstance(output, dict) else None)
+                        or (
+                            output.get("message")
+                            if isinstance(output, dict)
+                            else None
+                        )
+                        or (
+                            json.dumps(output, ensure_ascii=False)
+                            if output not in ({}, None)
+                            else None
+                        )
+                        or "Unknown error"
+                    )
+                    console.print(
+                        "[red]✗[/red] 服务调用错误 "
+                        f"(method={payload.get('method')}, tid={tid[:8]}..., data.result={data_result}, message={error_msg})"
+                    )
+                    future.set_exception(
+                        Exception(f"{error_msg} (data.result={data_result}, tid={tid})")
+                    )
                 # 成功
                 else:
                     console.print(f"[green]←[/green] 收到响应 (tid: {tid[:8]}...)")
