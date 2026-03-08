@@ -13,6 +13,15 @@ from rich.console import Console
 console = Console()
 
 
+def _to_optional_int(value: Any) -> Optional[int]:
+    try:
+        if value is None:
+            return None
+        return int(value)
+    except (TypeError, ValueError):
+        return None
+
+
 class MQTTClient:
     """简单的 MQTT 客户端封装"""
 
@@ -54,6 +63,33 @@ class MQTTClient:
             "gimbal_pitch": None,
             "gimbal_roll": None,
             "gimbal_yaw": None,
+            "screen_split_enable": None,
+            "ir_zoom_factor": None,
+            "zoom_factor": None,
+        }
+        # HSI 数据（hsi_info_push）
+        self.hsi_data = {
+            "around_distances": [],
+            "up_distance": None,
+            "down_distance": None,
+            "up_enable": None,
+            "up_work": None,
+            "down_enable": None,
+            "down_work": None,
+            "left_enable": None,
+            "left_work": None,
+            "right_enable": None,
+            "right_work": None,
+            "front_enable": None,
+            "front_work": None,
+            "back_enable": None,
+            "back_work": None,
+            "vertical_enable": None,
+            "vertical_work": None,
+            "horizontal_enable": None,
+            "horizontal_work": None,
+            "timestamp": None,
+            "seq": None,
         }
         # 起飞点高度（第一次读取到的全局高度）
         self.takeoff_height = None
@@ -76,6 +112,9 @@ class MQTTClient:
         # 连接可观测性（供上层排障）
         self._last_disconnect_rc: Optional[int] = None
         self._last_disconnect_at: Optional[float] = None
+        self._last_battery_msg_monotonic: Optional[float] = None
+        self._last_osd_msg_monotonic: Optional[float] = None
+        self._last_hsi_msg_monotonic: Optional[float] = None
 
     def connect(self):
         """建立 MQTT 连接"""
@@ -187,6 +226,21 @@ class MQTTClient:
             "last_disconnect_at": self._last_disconnect_at,
         }
 
+    def get_last_battery_msg_monotonic(self) -> Optional[float]:
+        """返回最近一次电池推送消息到达的 monotonic 时间。"""
+        with self.lock:
+            return self._last_battery_msg_monotonic
+
+    def get_last_osd_msg_monotonic(self) -> Optional[float]:
+        """返回最近一次 OSD 推送消息到达的 monotonic 时间。"""
+        with self.lock:
+            return self._last_osd_msg_monotonic
+
+    def get_last_hsi_msg_monotonic(self) -> Optional[float]:
+        """返回最近一次 HSI 推送消息到达的 monotonic 时间。"""
+        with self.lock:
+            return self._last_hsi_msg_monotonic
+
     def cleanup_request(self, tid: str):
         """清理挂起的请求（用于超时处理）"""
         with self.lock:
@@ -248,6 +302,20 @@ class MQTTClient:
                 self.osd_data["down_enable"] is True
                 and self.osd_data["down_work"] is True
             )
+
+    def get_hsi_data(self) -> Dict[str, Any]:
+        """获取完整 HSI 快照（返回副本，避免外部写入污染内部缓存）。"""
+        with self.lock:
+            snapshot = self.hsi_data.copy()
+            around = snapshot.get("around_distances")
+            snapshot["around_distances"] = list(around) if isinstance(around, list) else []
+            return snapshot
+
+    def get_around_distances(self) -> list[int]:
+        """获取 around_distances 数组副本。"""
+        with self.lock:
+            around = self.hsi_data.get("around_distances")
+            return list(around) if isinstance(around, list) else []
 
     def get_position(self) -> tuple[Optional[float], Optional[float], Optional[float]]:
         """获取最新位置 (纬度, 经度, 高度)，无卫星信号时返回 (None, None, None)"""
@@ -494,9 +562,8 @@ class MQTTClient:
             # 处理 OSD 数据推送
             if payload.get("method") == "osd_info_push":
                 # 更新频率追踪（在锁外完成时间获取，减少锁持有时间）
-                import time
-
                 now = time.time()
+                now_monotonic = time.monotonic()
 
                 data = payload.get("data", {})
                 with self.lock:
@@ -516,6 +583,7 @@ class MQTTClient:
 
                     # 更新频率追踪数据（2秒时间窗口）
                     self._last_osd_time = now
+                    self._last_osd_msg_monotonic = now_monotonic
                     self._osd_timestamps.append(now)
                     # 清理超过2秒的旧时间戳，保持窗口大小
                     while (
@@ -535,10 +603,41 @@ class MQTTClient:
             # 处理 HSI 数据推送
             if payload.get("method") == "hsi_info_push":
                 data = payload.get("data", {})
+                around_distances: list[int] = []
+                around_raw = data.get("around_distances")
+                if isinstance(around_raw, list):
+                    for item in around_raw:
+                        parsed = _to_optional_int(item)
+                        if parsed is not None:
+                            around_distances.append(parsed)
                 with self.lock:
-                    self.osd_data["down_distance"] = data.get("down_distance")
+                    down_distance = _to_optional_int(data.get("down_distance"))
+                    up_distance = _to_optional_int(data.get("up_distance"))
+                    self.osd_data["down_distance"] = down_distance
                     self.osd_data["down_enable"] = data.get("down_enable")
                     self.osd_data["down_work"] = data.get("down_work")
+                    self.hsi_data["around_distances"] = around_distances
+                    self.hsi_data["up_distance"] = up_distance
+                    self.hsi_data["down_distance"] = down_distance
+                    self.hsi_data["up_enable"] = data.get("up_enable")
+                    self.hsi_data["up_work"] = data.get("up_work")
+                    self.hsi_data["down_enable"] = data.get("down_enable")
+                    self.hsi_data["down_work"] = data.get("down_work")
+                    self.hsi_data["left_enable"] = data.get("left_enable")
+                    self.hsi_data["left_work"] = data.get("left_work")
+                    self.hsi_data["right_enable"] = data.get("right_enable")
+                    self.hsi_data["right_work"] = data.get("right_work")
+                    self.hsi_data["front_enable"] = data.get("front_enable")
+                    self.hsi_data["front_work"] = data.get("front_work")
+                    self.hsi_data["back_enable"] = data.get("back_enable")
+                    self.hsi_data["back_work"] = data.get("back_work")
+                    self.hsi_data["vertical_enable"] = data.get("vertical_enable")
+                    self.hsi_data["vertical_work"] = data.get("vertical_work")
+                    self.hsi_data["horizontal_enable"] = data.get("horizontal_enable")
+                    self.hsi_data["horizontal_work"] = data.get("horizontal_work")
+                    self.hsi_data["timestamp"] = _to_optional_int(payload.get("timestamp"))
+                    self.hsi_data["seq"] = _to_optional_int(payload.get("seq"))
+                    self._last_hsi_msg_monotonic = time.monotonic()
                 return
 
             # 处理电池信息推送
@@ -546,6 +645,7 @@ class MQTTClient:
                 data = payload.get("data", {})
                 with self.lock:
                     self.osd_data["battery_percent"] = data.get("capacity_percent")
+                    self._last_battery_msg_monotonic = time.monotonic()
                 return
 
             # 处理无人机状态推送
@@ -575,11 +675,22 @@ class MQTTClient:
             # 处理相机 OSD 信息推送
             if payload.get("method") == "drc_camera_osd_info_push":
                 data = payload.get("data", {})
+                ir_lense = data.get("ir_lense", {})
+                zoom_lense = data.get("zoom_lense", {})
                 with self.lock:
                     self.camera_osd["payload_index"] = data.get("payload_index")
                     self.camera_osd["gimbal_pitch"] = data.get("gimbal_pitch")
                     self.camera_osd["gimbal_roll"] = data.get("gimbal_roll")
                     self.camera_osd["gimbal_yaw"] = data.get("gimbal_yaw")
+                    if isinstance(ir_lense, dict):
+                        self.camera_osd["screen_split_enable"] = ir_lense.get(
+                            "screen_split_enable"
+                        )
+                        self.camera_osd["ir_zoom_factor"] = ir_lense.get(
+                            "ir_zoom_factor"
+                        )
+                    if isinstance(zoom_lense, dict):
+                        self.camera_osd["zoom_factor"] = zoom_lense.get("zoom_factor")
                 return
 
             # 处理 Fly-to 进度事件推送
