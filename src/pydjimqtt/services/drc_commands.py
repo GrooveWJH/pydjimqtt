@@ -36,6 +36,51 @@ def _next_seq() -> int:
         return _SEQ_COUNTER
 
 
+def _wait_for_drc_reply(
+    mqtt_client: MQTTClient,
+    *,
+    method: str,
+    seq: int,
+    timeout: float,
+    send_fn,
+) -> dict:
+    if not mqtt_client.client:
+        raise RuntimeError("MQTT client is not connected")
+
+    result_box: dict = {"result": None, "raw": None}
+    done = threading.Event()
+    original_on_message = mqtt_client.client.on_message
+
+    def on_message(client, userdata, msg):
+        try:
+            payload = json.loads(msg.payload.decode())
+        except Exception:
+            payload = {}
+        if payload.get("method") == method and payload.get("seq") == seq:
+            data = payload.get("data", {})
+            result_box["result"] = data.get("result")
+            result_box["raw"] = payload
+            done.set()
+        if original_on_message:
+            original_on_message(client, userdata, msg)
+
+    mqtt_client.client.on_message = on_message
+    try:
+        send_fn()
+        if not done.wait(timeout):
+            raise TimeoutError(f"{method} timeout")
+    finally:
+        mqtt_client.client.on_message = original_on_message
+
+    result = result_box.get("result")
+    return {
+        "ok": result in (0, None),
+        "result": result,
+        "seq": seq,
+        "raw": result_box.get("raw"),
+    }
+
+
 def send_stick_control(
     mqtt_client: MQTTClient,
     roll: int = 1024,
@@ -187,6 +232,7 @@ def set_camera_zoom(
     zoom_factor: float,
     camera_type: str = "zoom",
     seq: int | None = None,
+    debug_full_request: bool = False,
 ) -> None:
     """
     发送相机变焦控制指令（单次发送，Fire-and-forget）
@@ -194,14 +240,14 @@ def set_camera_zoom(
     Args:
         mqtt_client: MQTT 客户端
         payload_index: 相机枚举值（格式: {type-subtype-gimbalindex}，如 "88-0-0"）
-        zoom_factor: 变焦倍数（可见光: 1-112，红外: 2-20）
+        zoom_factor: 变焦倍数（统一范围: 1-112）
         camera_type: 相机类型（"ir"=红外, "wide"=广角, "zoom"=变焦，默认 "zoom"）
         seq: 序列号（None 则自动生成时间戳）
+        debug_full_request: 是否打印完整 MQTT 请求消息（默认 False）
 
     注意:
         - 无返回值（Fire-and-forget）
-        - 可见光相机变焦范围: 1-112
-        - 红外相机变焦范围: 2-20
+        - 统一变焦范围: 1-112
 
     示例:
         >>> # 设置变焦倍数为 10
@@ -219,23 +265,12 @@ def set_camera_zoom(
             f"camera_type must be one of ['ir', 'wide', 'zoom'], got {camera_type}"
         )
 
-    # 变焦倍数范围检查
-    if camera_type == "ir":
-        if not 2 <= zoom_factor <= 20:
-            console.print(
-                f"[red]✗ 红外相机变焦倍数超出范围: {zoom_factor} (应在 2-20)[/red]"
-            )
-            raise ValueError(
-                f"For IR camera, zoom_factor must be in range [2, 20], got {zoom_factor}"
-            )
-    else:  # zoom 或 wide
-        if not 1 <= zoom_factor <= 112:
-            console.print(
-                f"[red]✗ 可见光相机变焦倍数超出范围: {zoom_factor} (应在 1-112)[/red]"
-            )
-            raise ValueError(
-                f"For visible camera, zoom_factor must be in range [1, 112], got {zoom_factor}"
-            )
+    # 变焦倍数范围检查（统一策略：1-112）
+    if not 1 <= zoom_factor <= 112:
+        console.print(
+            f"[red]✗ 变焦倍数超出范围: {zoom_factor} (应在 1-112)[/red]"
+        )
+        raise ValueError(f"zoom_factor must be in range [1, 112], got {zoom_factor}")
 
     # 生成 seq
     if seq is None:
@@ -255,6 +290,18 @@ def set_camera_zoom(
 
     # 发送（QoS 0，无响应）
     try:
+        if debug_full_request:
+            from ..utils import print_json_message
+
+            print_json_message(
+                "📤 发送 MQTT 请求 (drc_camera_focal_length_set)",
+                {
+                    "topic": topic,
+                    "qos": 0,
+                    "payload": payload,
+                },
+                "blue",
+            )
         mqtt_client.client.publish(topic, json.dumps(payload), qos=0)
         console.print(
             f"[cyan]→[/cyan] 变焦指令已发送: {camera_type} zoom={zoom_factor}x (payload: {payload_index})"
@@ -264,8 +311,168 @@ def set_camera_zoom(
         raise
 
 
+def camera_screen_split(
+    mqtt_client: MQTTClient,
+    payload_index: str,
+    enable: bool,
+    seq: int | None = None,
+) -> None:
+    """
+    发送分屏控制指令（单次发送，Fire-and-forget）
+
+    Args:
+        mqtt_client: MQTT 客户端
+        payload_index: 相机枚举值（格式: {type-subtype-gimbalindex}，如 "89-0-0"）
+        enable: 是否启用分屏
+        seq: 序列号（None 则自动生成时间戳）
+    """
+    if not payload_index:
+        console.print("[red]✗ payload_index 不能为空[/red]")
+        raise ValueError("payload_index must be a non-empty string")
+
+    if seq is None:
+        seq = _next_seq()
+
+    topic = f"thing/product/{mqtt_client.gateway_sn}/drc/down"
+    payload = {
+        "seq": seq,
+        "method": "drc_camera_screen_split",
+        "data": {
+            "payload_index": payload_index,
+            "enable": bool(enable),
+        },
+    }
+
+    try:
+        mqtt_client.client.publish(topic, json.dumps(payload), qos=0)
+        status = "开启" if enable else "关闭"
+        console.print(
+            f"[cyan]→[/cyan] 分屏指令已发送: {status} (payload: {payload_index})"
+        )
+    except Exception as e:
+        console.print(f"[red]✗ 分屏指令发送失败: {e}[/red]")
+        raise
+
+
+def camera_screen_split_wait(
+    mqtt_client: MQTTClient,
+    payload_index: str,
+    enable: bool,
+    timeout: float = 3.0,
+    seq: int | None = None,
+) -> dict:
+    """
+    发送分屏控制指令并等待 drc/up 回包。
+
+    Returns:
+        {'ok': bool, 'result': int | None, 'seq': int, 'raw': dict | None}
+    """
+    if seq is None:
+        seq = _next_seq()
+    return _wait_for_drc_reply(
+        mqtt_client,
+        method="drc_camera_screen_split",
+        seq=seq,
+        timeout=timeout,
+        send_fn=lambda: camera_screen_split(
+            mqtt_client, payload_index=payload_index, enable=enable, seq=seq
+        ),
+    )
+
+
+def drc_live_lens_change(
+    mqtt_client: MQTTClient,
+    payload_index: str,
+    video_type: str,
+    seq: int | None = None,
+    debug_full_request: bool = False,
+) -> None:
+    """
+    发送 DRC 直播镜头切换指令（Fire-and-forget）
+
+    method: drc_live_lens_change
+    data: { payload_index, video_type }
+    """
+    if not payload_index:
+        console.print("[red]✗ payload_index 不能为空[/red]")
+        raise ValueError("payload_index must be a non-empty string")
+
+    normalized_video_type = str(video_type or "").strip().lower()
+    if normalized_video_type == "ir":
+        normalized_video_type = "thermal"
+    if normalized_video_type not in ("wide", "zoom", "thermal"):
+        raise ValueError(
+            "video_type must be one of ['wide', 'zoom', 'thermal'], "
+            f"got {video_type!r}"
+        )
+
+    if seq is None:
+        seq = _next_seq()
+
+    topic = f"thing/product/{mqtt_client.gateway_sn}/drc/down"
+    payload = {
+        "seq": seq,
+        "method": "drc_live_lens_change",
+        "data": {
+            "payload_index": payload_index,
+            "video_type": normalized_video_type,
+        },
+    }
+
+    try:
+        if debug_full_request:
+            from ..utils import print_json_message
+
+            print_json_message(
+                "📤 发送 MQTT 请求 (drc_live_lens_change)",
+                {"topic": topic, "qos": 0, "payload": payload},
+                "blue",
+            )
+        mqtt_client.client.publish(topic, json.dumps(payload), qos=0)
+        console.print(
+            f"[cyan]→[/cyan] 镜头切换指令已发送: {normalized_video_type} (payload: {payload_index})"
+        )
+    except Exception as e:
+        console.print(f"[red]✗ 镜头切换指令发送失败: {e}[/red]")
+        raise
+
+
+def drc_live_lens_change_wait(
+    mqtt_client: MQTTClient,
+    payload_index: str,
+    video_type: str,
+    timeout: float = 3.0,
+    seq: int | None = None,
+    debug_full_request: bool = False,
+) -> dict:
+    """
+    发送 DRC 直播镜头切换并等待 drc/up 回包。
+
+    Returns:
+        {'ok': bool, 'result': int | None, 'seq': int, 'raw': dict | None}
+    """
+    if seq is None:
+        seq = _next_seq()
+    return _wait_for_drc_reply(
+        mqtt_client,
+        method="drc_live_lens_change",
+        seq=seq,
+        timeout=timeout,
+        send_fn=lambda: drc_live_lens_change(
+            mqtt_client,
+            payload_index=payload_index,
+            video_type=video_type,
+            seq=seq,
+            debug_full_request=debug_full_request,
+        ),
+    )
+
+
 def take_photo(
-    mqtt_client: MQTTClient, payload_index: str, seq: int | None = None
+    mqtt_client: MQTTClient,
+    payload_index: str,
+    seq: int | None = None,
+    debug_full_request: bool = False,
 ) -> None:
     """
     发送拍照指令（单次发送，Fire-and-forget）
@@ -294,6 +501,14 @@ def take_photo(
     }
 
     try:
+        if debug_full_request:
+            from ..utils import print_json_message
+
+            print_json_message(
+                "📤 发送 MQTT 请求 (drc_camera_photo_take)",
+                {"topic": topic, "qos": 0, "payload": payload},
+                "blue",
+            )
         mqtt_client.client.publish(topic, json.dumps(payload), qos=0)
         console.print(f"[cyan]→[/cyan] 拍照指令已发送 (payload: {payload_index})")
     except Exception as e:
@@ -306,6 +521,8 @@ def take_photo_wait(
     payload_index: str,
     timeout: float = 10.0,
     seq: int | None = None,
+    debug_full_request: bool = False,
+    debug_full_response: bool = False,
 ) -> dict:
     """
     发送拍照指令并等待结果回包。
@@ -319,7 +536,7 @@ def take_photo_wait(
     if seq is None:
         seq = _next_seq()
 
-    result_box: dict = {"result": None, "status": None}
+    result_box: dict = {"result": None, "status": None, "raw": None}
     done = threading.Event()
     original_on_message = mqtt_client.client.on_message
 
@@ -335,13 +552,27 @@ def take_photo_wait(
             data = payload.get("data", {})
             result_box["result"] = data.get("result")
             result_box["status"] = data.get("status")
+            result_box["raw"] = payload
+            if debug_full_response:
+                from ..utils import print_json_message
+
+                print_json_message(
+                    "📥 接收 MQTT 响应 (drc_camera_photo_take)",
+                    {"topic": msg.topic, "payload": payload},
+                    "green",
+                )
             done.set()
         if original_on_message:
             original_on_message(client, userdata, msg)
 
     mqtt_client.client.on_message = on_message
     try:
-        take_photo(mqtt_client, payload_index=payload_index, seq=seq)
+        take_photo(
+            mqtt_client,
+            payload_index=payload_index,
+            seq=seq,
+            debug_full_request=debug_full_request,
+        )
         if not done.wait(timeout):
             raise TimeoutError("drc_camera_photo_take timeout")
     finally:
@@ -353,6 +584,7 @@ def take_photo_wait(
         "result": result,
         "status": result_box.get("status"),
         "seq": seq,
+        "raw": result_box.get("raw"),
     }
 
 

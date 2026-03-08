@@ -21,6 +21,10 @@ from .heartbeat import start_heartbeat, stop_heartbeat
 from .drc_commands import (
     send_stick_control,
     set_camera_zoom,
+    camera_screen_split,
+    camera_screen_split_wait,
+    drc_live_lens_change,
+    drc_live_lens_change_wait,
     take_photo,
     take_photo_wait,
     camera_look_at,
@@ -52,6 +56,10 @@ __all__ = [
     "send_stick_control",
     # 相机和云台控制
     "set_camera_zoom",
+    "camera_screen_split",
+    "camera_screen_split_wait",
+    "drc_live_lens_change",
+    "drc_live_lens_change_wait",
     "take_photo",
     "take_photo_wait",
     "camera_look_at",
