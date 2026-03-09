@@ -27,10 +27,10 @@ if TYPE_CHECKING:
 # ========== 配置参数 ==========
 CONFIG = {
     "gateway_sn": "9N9CN2B00121JN",
-    "mqtt_host": "192.168.10.90",
+    "mqtt_host": "192.168.11.100",
     "mqtt_port": 1883,
-    "mqtt_username": "dji",
-    "mqtt_password": "lab605605",
+    "mqtt_username": "admin",
+    "mqtt_password": "yundrone123",
     "frequency": 30.0,
     "user_id": "keyboard_pilot",
     "user_callsign": "Keyboard Pilot",
