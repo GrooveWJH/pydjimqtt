@@ -528,7 +528,7 @@ def take_photo_wait(
     发送拍照指令并等待结果回包。
 
     Returns:
-        {'ok': bool, 'result': int | None, 'status': str | None, 'seq': int}
+        {'ok': bool, 'result': int | None, 'status': str | None, 'seq': int, 'payload_index': str}
     """
     if not mqtt_client.client:
         raise RuntimeError("MQTT client is not connected")
@@ -584,6 +584,7 @@ def take_photo_wait(
         "result": result,
         "status": result_box.get("status"),
         "seq": seq,
+        "payload_index": payload_index,
         "raw": result_box.get("raw"),
     }
 
