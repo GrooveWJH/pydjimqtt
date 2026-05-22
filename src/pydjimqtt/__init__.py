@@ -53,6 +53,15 @@ from .primitives import (
     fly_to_waypoint,
     monitor_flyto_progress,
 )
+from .gimbal import (
+    DEFAULT_GIMBAL_PITCH_PROFILE,
+    GIMBAL_PITCH_MAX_DEG,
+    GIMBAL_PITCH_MIN_DEG,
+    GimbalPitchController,
+    GimbalPitchResult,
+    set_gimbal_pitch,
+    set_gimbal_pitch_async,
+)
 from .tasks import (
     MissionRunner,
     run_parallel_missions,
@@ -115,6 +124,14 @@ __all__ = [
     "send_stick_repeatedly",
     "fly_to_waypoint",
     "monitor_flyto_progress",
+    # Gimbal
+    "DEFAULT_GIMBAL_PITCH_PROFILE",
+    "GIMBAL_PITCH_MAX_DEG",
+    "GIMBAL_PITCH_MIN_DEG",
+    "GimbalPitchController",
+    "GimbalPitchResult",
+    "set_gimbal_pitch",
+    "set_gimbal_pitch_async",
     # Tasks
     "MissionRunner",
     "run_parallel_missions",
