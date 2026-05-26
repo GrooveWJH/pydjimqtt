@@ -107,6 +107,8 @@ def load_trajectory(filepath: str) -> List[Dict[str, Any]]:
 
     # 验证航点数据格式
     for i, wp in enumerate(waypoints):
+        if not isinstance(wp, dict):
+            raise ValueError(f"航点 {i + 1} 数据格式错误: {wp}")
         if "lat" not in wp or "lon" not in wp:
             raise ValueError(f"航点 {i + 1} 缺少 lat 或 lon 字段: {wp}")
 
@@ -186,9 +188,7 @@ def fly_trajectory_sequence(
             caller = runner.caller
             callsign = runner.config.get("callsign", "UAV")
             if show_progress:
-                console.print(
-                    f"[bright_cyan][{callsign}] 飞向航点 {wp_index}...[/bright_cyan]"
-                )
+                console.print(f"[bright_cyan][{callsign}] 飞向航点 {wp_index}...[/bright_cyan]")
 
             try:
                 fly_to_id = fly_to_point(
@@ -224,9 +224,7 @@ def fly_trajectory_sequence(
             # 跳过 service call 失败的无人机（用缺失 key 判断，不用 None）
             if callsign not in fly_to_ids:
                 if show_progress:
-                    console.print(
-                        f"[dim][{callsign}] 跳过监控（service call 失败）[/dim]"
-                    )
+                    console.print(f"[dim][{callsign}] 跳过监控（service call 失败）[/dim]")
                 continue
 
             fly_to_id = fly_to_ids[callsign]
@@ -275,21 +273,13 @@ def fly_trajectory_sequence(
                                 # 构建进度信息字符串
                                 info_parts = []
                                 if remaining_distance is not None:
-                                    info_parts.append(
-                                        f"剩余距离: {remaining_distance:.1f}m"
-                                    )
+                                    info_parts.append(f"剩余距离: {remaining_distance:.1f}m")
                                 if remaining_time is not None:
-                                    info_parts.append(
-                                        f"剩余时间: {remaining_time:.1f}s"
-                                    )
+                                    info_parts.append(f"剩余时间: {remaining_time:.1f}s")
                                 if way_point_index is not None:
                                     info_parts.append(f"航点索引: {way_point_index}")
 
-                                info_str = (
-                                    " | ".join(info_parts)
-                                    if info_parts
-                                    else "飞行中..."
-                                )
+                                info_str = " | ".join(info_parts) if info_parts else "飞行中..."
 
                                 console.print(
                                     f"[bright_cyan]→ [{callsign}] 飞向航点 {wp_index}: {info_str}[/bright_cyan]"
@@ -298,9 +288,7 @@ def fly_trajectory_sequence(
 
                         # 调试：打印完整事件数据
                         if debug and status in terminal_statuses:
-                            console.print(
-                                f"[dim]🐛 [{callsign}] 收到终止事件: {progress}[/dim]"
-                            )
+                            console.print(f"[dim]🐛 [{callsign}] 收到终止事件: {progress}[/dim]")
 
                         # 检查是否到达终止状态
                         if status in terminal_statuses:
@@ -316,18 +304,14 @@ def fly_trajectory_sequence(
                                     console.print(
                                         f"[bold bright_red]✗ [{callsign}] 飞向航点 {wp_index} 失败[/bold bright_red]"
                                     )
-                                    console.print(
-                                        f"[dim]   result_code: {result_code}[/dim]"
-                                    )
+                                    console.print(f"[dim]   result_code: {result_code}[/dim]")
                                 all_success = False
                             elif status == "wayline_cancel":
                                 if show_progress:
                                     console.print(
                                         f"[bold bright_yellow]⚠ [{callsign}] 飞向航点 {wp_index} 取消[/bold bright_yellow]"
                                     )
-                                    console.print(
-                                        f"[dim]   result_code: {result_code}[/dim]"
-                                    )
+                                    console.print(f"[dim]   result_code: {result_code}[/dim]")
                                 all_success = False
 
                             # 到达终止状态，退出循环
@@ -362,9 +346,7 @@ def fly_trajectory_sequence(
                 return False
 
             if show_progress:
-                console.print(
-                    f"[bright_cyan]━━━ 航点 {wp_index} 悬停操作 ━━━[/bright_cyan]"
-                )
+                console.print(f"[bright_cyan]━━━ 航点 {wp_index} 悬停操作 ━━━[/bright_cyan]")
                 console.print(
                     f"[bright_yellow]悬停 {hover_between_waypoints:.1f} 秒，切换zoom镜头 + 云台朝下 + 变焦3倍[/bright_yellow]"
                 )
@@ -398,16 +380,12 @@ def fly_trajectory_sequence(
 
                     # 2. 云台朝下（reset_mode=1: yaw回中、pitch向下）
                     if show_progress:
-                        console.print(
-                            f"[bright_cyan][{callsign}] 云台朝下...[/bright_cyan]"
-                        )
+                        console.print(f"[bright_cyan][{callsign}] 云台朝下...[/bright_cyan]")
                     reset_gimbal(mqtt, payload_index=payload_index, reset_mode=1)
 
                     # 3. 变焦3倍
                     if show_progress:
-                        console.print(
-                            f"[bright_cyan][{callsign}] 变焦3倍...[/bright_cyan]"
-                        )
+                        console.print(f"[bright_cyan][{callsign}] 变焦3倍...[/bright_cyan]")
                     set_camera_zoom(
                         mqtt,
                         payload_index=payload_index,

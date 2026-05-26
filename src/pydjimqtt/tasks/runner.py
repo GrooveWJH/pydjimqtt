@@ -4,13 +4,13 @@
 
 import time
 import threading
-from typing import Callable, Dict, Any, List, Optional, Tuple
+from typing import Callable, Dict, Any, List, Optional, Tuple, cast
 from rich.console import Console
 from rich.table import Table
 from rich.live import Live
 
 from ..core import MQTTClient, ServiceCaller
-from ..services import stop_heartbeat
+from ..services import HeartbeatHandle, stop_heartbeat
 from ..primitives import send_stick_repeatedly
 
 console = Console()
@@ -23,7 +23,7 @@ class MissionRunner:
         self,
         mqtt: MQTTClient,
         caller: ServiceCaller,
-        heartbeat: threading.Thread,
+        heartbeat: HeartbeatHandle,
         config: Dict[str, Any],
     ):
         """
@@ -57,9 +57,7 @@ class MissionRunner:
         )
         self.thread.start()
 
-    def _run_with_error_handling(
-        self, mission_func: Callable[["MissionRunner"], None]
-    ) -> None:
+    def _run_with_error_handling(self, mission_func: Callable[["MissionRunner"], None]) -> None:
         """带错误处理的任务执行"""
         try:
             mission_func(self)
@@ -119,10 +117,12 @@ def create_status_table(runners: List[MissionRunner]) -> Table:
     return table
 
 
+MissionFunc = Callable[[MissionRunner], None]
+
+
 def run_parallel_missions(
-    connections: List[Tuple[MQTTClient, ServiceCaller, threading.Thread]],
-    mission_func: Callable[[MissionRunner], None]
-    | List[Callable[[MissionRunner], None]],
+    connections: List[Tuple[MQTTClient, ServiceCaller, HeartbeatHandle]],
+    mission_func: MissionFunc | List[MissionFunc],
     uav_configs: List[Dict[str, Any]],
     countdown: int = 3,
     show_monitor: bool = True,
@@ -172,8 +172,9 @@ def run_parallel_missions(
 
     # 启动所有任务
     if isinstance(mission_func, list):
+        missions = cast(List[MissionFunc], mission_func)
         # 任务函数列表：每个无人机执行对应任务
-        for runner, func in zip(runners, mission_func):
+        for runner, func in zip(runners, missions):
             runner.run(func)
     else:
         # 单一任务函数：所有无人机执行相同任务
@@ -183,9 +184,7 @@ def run_parallel_missions(
     # 实时监控（可选）
     if show_monitor:
         try:
-            with Live(
-                create_status_table(runners), refresh_per_second=4, console=console
-            ) as live:
+            with Live(create_status_table(runners), refresh_per_second=4, console=console) as live:
                 while True:
                     if all(not r.running for r in runners):
                         break
@@ -238,13 +237,9 @@ def cleanup_missions(runners: List[MissionRunner], hover_duration: float = 1.0) 
         if "完成" in runner.status or "任务完成" in runner.status:
             data_info = ""
             if runner.data:
-                data_info = ", " + ", ".join(
-                    f"{k}: {v}" for k, v in list(runner.data.items())[:2]
-                )
+                data_info = ", " + ", ".join(f"{k}: {v}" for k, v in list(runner.data.items())[:2])
             console.print(
                 f"[green]✓ {runner.config['callsign']}: {runner.status}{data_info}[/green]"
             )
         else:
-            console.print(
-                f"[yellow]⚠ {runner.config['callsign']}: {runner.status}[/yellow]"
-            )
+            console.print(f"[yellow]⚠ {runner.config['callsign']}: {runner.status}[/yellow]")

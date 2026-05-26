@@ -81,9 +81,7 @@ def get_key() -> Optional[str]:
         termios.tcsetattr(fd, termios.TCSADRAIN, old_settings)
 
 
-def wait_for_camera_data(
-    mqtt_client, max_wait: int = 10
-) -> Tuple[Optional[str], Optional[str]]:
+def wait_for_camera_data(mqtt_client, max_wait: int = 10) -> Tuple[Optional[str], Optional[str]]:
     """
     等待相机数据到达
 

@@ -32,7 +32,7 @@ class MQTTClient:
         self.pending_requests: Dict[str, Future] = {}
         self.lock = threading.Lock()
         # OSD 数据缓存
-        self.osd_data = {
+        self.osd_data: Dict[str, Any] = {
             "latitude": None,
             "longitude": None,
             "height": None,
@@ -47,7 +47,7 @@ class MQTTClient:
             "battery_percent": None,
         }
         # 无人机状态数据
-        self.drone_state = {
+        self.drone_state: Dict[str, Any] = {
             "mode_code": None,
             "rth_altitude": None,
             "distance_limit": None,
@@ -58,7 +58,7 @@ class MQTTClient:
         # 拓扑数据（update_topo）- 保存完整的 data 字段
         self.topo_data = None  # 完整的 update_topo data 对象
         # 相机 OSD 信息（从 drc_camera_osd_info_push 获取）
-        self.camera_osd = {
+        self.camera_osd: Dict[str, Any] = {
             "payload_index": None,  # 相机索引，如 "88-0-0"
             "gimbal_pitch": None,
             "gimbal_roll": None,
@@ -68,7 +68,7 @@ class MQTTClient:
             "zoom_factor": None,
         }
         # HSI 数据（hsi_info_push）
-        self.hsi_data = {
+        self.hsi_data: Dict[str, Any] = {
             "around_distances": [],
             "up_distance": None,
             "down_distance": None,
@@ -94,7 +94,7 @@ class MQTTClient:
         # 起飞点高度（第一次读取到的全局高度）
         self.takeoff_height = None
         # Fly-to 进度数据
-        self.flyto_progress = {
+        self.flyto_progress: Dict[str, Any] = {
             "fly_to_id": None,
             "status": None,  # wayline_cancel, wayline_failed, wayline_ok, wayline_progress
             "result": None,
@@ -152,9 +152,7 @@ class MQTTClient:
         self.client.on_connect = on_connect
         self.client.on_disconnect = on_disconnect
 
-        console.print(
-            f"[cyan]连接 MQTT: {self.config['host']}:{self.config['port']}[/cyan]"
-        )
+        console.print(f"[cyan]连接 MQTT: {self.config['host']}:{self.config['port']}[/cyan]")
 
         try:
             # 添加连接超时（5秒）
@@ -298,10 +296,7 @@ class MQTTClient:
     def is_local_height_ok(self) -> bool:
         """判断 HSI 高度数据是否有效（down_enable 和 down_work 都为 True）"""
         with self.lock:
-            return (
-                self.osd_data["down_enable"] is True
-                and self.osd_data["down_work"] is True
-            )
+            return self.osd_data["down_enable"] is True and self.osd_data["down_work"] is True
 
     def get_hsi_data(self) -> Dict[str, Any]:
         """获取完整 HSI 快照（返回副本，避免外部写入污染内部缓存）。"""
@@ -315,7 +310,9 @@ class MQTTClient:
         """获取 around_distances 数组副本。"""
         with self.lock:
             around = self.hsi_data.get("around_distances")
-            return list(around) if isinstance(around, list) else []
+            if not isinstance(around, list):
+                return []
+            return [int(value) for value in around]
 
     def get_position(self) -> tuple[Optional[float], Optional[float], Optional[float]]:
         """获取最新位置 (纬度, 经度, 高度)，无卫星信号时返回 (None, None, None)"""
@@ -394,6 +391,21 @@ class MQTTClient:
                 self.camera_osd["gimbal_yaw"],
             )
 
+    def wait_for_gimbal_attitude(
+        self,
+        timeout: float = 10.0,
+        poll_interval: float = 0.2,
+    ) -> tuple[float, float, float]:
+        """等待相机 OSD 推送提供有效云台姿态。"""
+        deadline = time.monotonic() + max(0.0, timeout)
+        interval = max(0.01, poll_interval)
+        while time.monotonic() <= deadline:
+            pitch, roll, yaw = self.get_gimbal_attitude()
+            if pitch is not None and roll is not None and yaw is not None:
+                return float(pitch), float(roll), float(yaw)
+            time.sleep(interval)
+        raise TimeoutError(f"gimbal attitude is not available within {timeout:.1f}s")
+
     def get_camera_osd_data(self) -> Dict[str, Any]:
         """获取完整的相机 OSD 数据"""
         with self.lock:
@@ -457,9 +469,7 @@ class MQTTClient:
         while True:
             elapsed = time.time() - start_time
             if elapsed > timeout:
-                raise TimeoutError(
-                    f"等待 fly_to_id={expected_fly_to_id} 的事件超时（{timeout}秒）"
-                )
+                raise TimeoutError(f"等待 fly_to_id={expected_fly_to_id} 的事件超时（{timeout}秒）")
 
             # 读取最新事件数据（线程安全）
             progress = self.get_flyto_progress()
@@ -549,6 +559,8 @@ class MQTTClient:
 
         # 发布消息
         msg_json = json.dumps(payload)
+        if self.client is None:
+            raise RuntimeError("MQTT client is not connected")
         self.client.publish(topic, msg_json, qos=1)
         console.print(f"[blue]→[/blue] 发送 {method} (tid: {tid[:8]}...)")
 
@@ -587,8 +599,7 @@ class MQTTClient:
                     self._osd_timestamps.append(now)
                     # 清理超过2秒的旧时间戳，保持窗口大小
                     while (
-                        self._osd_timestamps
-                        and (now - self._osd_timestamps[0]) > self._freq_window
+                        self._osd_timestamps and (now - self._osd_timestamps[0]) > self._freq_window
                     ):
                         self._osd_timestamps.pop(0)
 
@@ -657,12 +668,8 @@ class MQTTClient:
                     self.drone_state["rth_altitude"] = data.get("rth_altitude")
                     self.drone_state["distance_limit"] = limit.get("distance_limit")
                     self.drone_state["height_limit"] = limit.get("height_limit")
-                    self.drone_state["is_in_fixed_speed"] = data.get(
-                        "is_in_fixed_speed"
-                    )
-                    self.drone_state["night_lights_state"] = data.get(
-                        "night_lights_state"
-                    )
+                    self.drone_state["is_in_fixed_speed"] = data.get("is_in_fixed_speed")
+                    self.drone_state["night_lights_state"] = data.get("night_lights_state")
                 return
 
             # 处理拓扑更新推送（保存完整的 data 字段）
@@ -683,12 +690,8 @@ class MQTTClient:
                     self.camera_osd["gimbal_roll"] = data.get("gimbal_roll")
                     self.camera_osd["gimbal_yaw"] = data.get("gimbal_yaw")
                     if isinstance(ir_lense, dict):
-                        self.camera_osd["screen_split_enable"] = ir_lense.get(
-                            "screen_split_enable"
-                        )
-                        self.camera_osd["ir_zoom_factor"] = ir_lense.get(
-                            "ir_zoom_factor"
-                        )
+                        self.camera_osd["screen_split_enable"] = ir_lense.get("screen_split_enable")
+                        self.camera_osd["ir_zoom_factor"] = ir_lense.get("ir_zoom_factor")
                     if isinstance(zoom_lense, dict):
                         self.camera_osd["zoom_factor"] = zoom_lense.get("zoom_factor")
                 return
@@ -701,13 +704,9 @@ class MQTTClient:
                     self.flyto_progress["status"] = data.get("status")
                     self.flyto_progress["result"] = data.get("result")
                     self.flyto_progress["way_point_index"] = data.get("way_point_index")
-                    self.flyto_progress["remaining_distance"] = data.get(
-                        "remaining_distance"
-                    )
+                    self.flyto_progress["remaining_distance"] = data.get("remaining_distance")
                     self.flyto_progress["remaining_time"] = data.get("remaining_time")
-                    self.flyto_progress["planned_path_points"] = data.get(
-                        "planned_path_points"
-                    )
+                    self.flyto_progress["planned_path_points"] = data.get("planned_path_points")
                 return
 
             # 处理服务响应
@@ -744,31 +743,21 @@ class MQTTClient:
                     error_msg = (
                         payload.get("message")
                         or (output.get("msg") if isinstance(output, dict) else None)
-                        or (
-                            output.get("message")
-                            if isinstance(output, dict)
-                            else None
-                        )
+                        or (output.get("message") if isinstance(output, dict) else None)
                         or "Unknown error"
                     )
                     console.print(
                         "[red]✗[/red] 服务调用错误 "
                         f"(method={payload.get('method')}, tid={tid[:8]}..., result={top_result}, message={error_msg})"
                     )
-                    future.set_exception(
-                        Exception(f"{error_msg} (result={top_result}, tid={tid})")
-                    )
+                    future.set_exception(Exception(f"{error_msg} (result={top_result}, tid={tid})"))
                 # 再检查 data.result（简化格式，如 drc_mode_enter）
                 elif "result" in data and data_result != 0:
                     output = data.get("output", {})
                     error_msg = (
                         data.get("message")
                         or (output.get("msg") if isinstance(output, dict) else None)
-                        or (
-                            output.get("message")
-                            if isinstance(output, dict)
-                            else None
-                        )
+                        or (output.get("message") if isinstance(output, dict) else None)
                         or (
                             json.dumps(output, ensure_ascii=False)
                             if output not in ({}, None)

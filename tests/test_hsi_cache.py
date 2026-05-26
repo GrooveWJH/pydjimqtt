@@ -1,7 +1,11 @@
 from __future__ import annotations
 
 import json
+import threading
+import time
 from types import SimpleNamespace
+
+import pytest
 
 from pydjimqtt.core.mqtt_client import MQTTClient
 
@@ -80,3 +84,40 @@ def test_hsi_empty_data_keeps_empty_array() -> None:
     assert client.get_around_distances() == []
     snapshot = client.get_hsi_data()
     assert snapshot["around_distances"] == []
+
+
+def test_wait_for_gimbal_attitude_returns_after_camera_osd_arrives() -> None:
+    client = _make_client()
+
+    def delayed_camera_osd() -> None:
+        time.sleep(0.02)
+        _push_message(
+            client,
+            {
+                "method": "drc_camera_osd_info_push",
+                "data": {
+                    "payload_index": "88-0-0",
+                    "gimbal_pitch": -32.5,
+                    "gimbal_roll": 1.25,
+                    "gimbal_yaw": 92.0,
+                },
+            },
+        )
+
+    thread = threading.Thread(target=delayed_camera_osd)
+    thread.start()
+    try:
+        assert client.wait_for_gimbal_attitude(timeout=1.0, poll_interval=0.01) == (
+            -32.5,
+            1.25,
+            92.0,
+        )
+    finally:
+        thread.join(timeout=1.0)
+
+
+def test_wait_for_gimbal_attitude_times_out_without_camera_osd() -> None:
+    client = _make_client()
+
+    with pytest.raises(TimeoutError, match="gimbal attitude"):
+        client.wait_for_gimbal_attitude(timeout=0.01, poll_interval=0.005)

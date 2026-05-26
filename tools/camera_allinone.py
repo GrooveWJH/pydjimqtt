@@ -141,9 +141,7 @@ def zoom_in():
             return
         z = s["config"]["zoom"]
         z["current"] = min(z["current"] + z["step"], z["max"])
-        set_camera_zoom(
-            s["mqtt"], s["mqtt"].get_payload_index() or "88-0-0", z["current"], "zoom"
-        )
+        set_camera_zoom(s["mqtt"], s["mqtt"].get_payload_index() or "88-0-0", z["current"], "zoom")
         log(f"  {cs}: {z['current']}x")
 
     parallel_run("放大", action)
@@ -157,9 +155,7 @@ def zoom_out():
             return
         z = s["config"]["zoom"]
         z["current"] = max(z["current"] - z["step"], z["min"])
-        set_camera_zoom(
-            s["mqtt"], s["mqtt"].get_payload_index() or "88-0-0", z["current"], "zoom"
-        )
+        set_camera_zoom(s["mqtt"], s["mqtt"].get_payload_index() or "88-0-0", z["current"], "zoom")
         log(f"  {cs}: {z['current']}x")
 
     parallel_run("缩小", action)
@@ -329,9 +325,7 @@ def main():
             "config": config,
         }
 
-    print(
-        "控制: ↑回中 ↓向下 p看地面 z放大 x缩小 l低头锁定 w切换镜头 a AIM锁定 q/Ctrl+C退出\n"
-    )
+    print("控制: ↑回中 ↓向下 p看地面 z放大 x缩小 l低头锁定 w切换镜头 a AIM锁定 q/Ctrl+C退出\n")
 
     try:
         # 启动状态监控

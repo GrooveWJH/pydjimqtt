@@ -150,9 +150,7 @@ class MockMQTTClient:
 
         # 速度分量（数学准确的导数）
         speed_x = tangential_velocity * math.cos(angle)  # 纬度方向
-        speed_y = -tangential_velocity * math.sin(
-            angle
-        )  # 经度方向（负号因为cos的导数）
+        speed_y = -tangential_velocity * math.sin(angle)  # 经度方向（负号因为cos的导数）
 
         # 垂直速度（高度的导数）
         speed_z = (
@@ -396,7 +394,10 @@ class MockServiceCaller:
         self.mqtt = mqtt_client
 
     def call(
-        self, method: str, data: Dict[str, Any] = None, timeout: int = 10
+        self,
+        method: str,
+        data: Dict[str, Any] | None = None,
+        timeout: int = 10,
     ) -> Dict[str, Any]:
         """
         模拟服务调用（总是返回成功）

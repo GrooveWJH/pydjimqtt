@@ -36,6 +36,13 @@ def _next_seq() -> int:
         return _SEQ_COUNTER
 
 
+def _publish_drc_down(mqtt_client: MQTTClient, payload: dict) -> None:
+    if mqtt_client.client is None:
+        raise RuntimeError("MQTT client is not connected")
+    topic = f"thing/product/{mqtt_client.gateway_sn}/drc/down"
+    mqtt_client.client.publish(topic, json.dumps(payload), qos=0)
+
+
 def _wait_for_drc_reply(
     mqtt_client: MQTTClient,
     *,
@@ -130,7 +137,6 @@ def send_stick_control(
         seq = _next_seq()
 
     # 构建消息
-    topic = f"thing/product/{mqtt_client.gateway_sn}/drc/down"
     payload = {
         "seq": seq,
         "method": "stick_control",
@@ -139,7 +145,7 @@ def send_stick_control(
 
     # 发送（QoS 0，无响应）
     try:
-        mqtt_client.client.publish(topic, json.dumps(payload), qos=0)
+        _publish_drc_down(mqtt_client, payload)
     except Exception as e:
         console.print(f"[red]✗ 杆量控制发送失败: {e}[/red]")
         raise
@@ -163,11 +169,10 @@ def drone_emergency_stop(mqtt_client: MQTTClient, seq: int | None = None) -> int
     if seq is None:
         seq = _next_seq()
 
-    topic = f"thing/product/{mqtt_client.gateway_sn}/drc/down"
     payload = {"seq": seq, "method": "drone_emergency_stop", "data": {}}
 
     try:
-        mqtt_client.client.publish(topic, json.dumps(payload), qos=0)
+        _publish_drc_down(mqtt_client, payload)
         console.print(f"[bright_yellow]⚠ 急停指令已发送 (seq: {seq})[/bright_yellow]")
     except Exception as e:
         console.print(f"[red]✗ 急停指令发送失败: {e}[/red]")
@@ -200,10 +205,7 @@ def drone_emergency_stop_wait(
             payload = json.loads(msg.payload.decode())
         except Exception:
             payload = {}
-        if (
-            payload.get("method") == "drone_emergency_stop"
-            and payload.get("seq") == seq
-        ):
+        if payload.get("method") == "drone_emergency_stop" and payload.get("seq") == seq:
             data = payload.get("data", {})
             result_box["result"] = data.get("result")
             done.set()
@@ -258,18 +260,12 @@ def set_camera_zoom(
     """
     # 参数校验
     if camera_type not in ["ir", "wide", "zoom"]:
-        console.print(
-            f"[red]✗ 无效的相机类型: {camera_type} (应为 'ir', 'wide', 或 'zoom')[/red]"
-        )
-        raise ValueError(
-            f"camera_type must be one of ['ir', 'wide', 'zoom'], got {camera_type}"
-        )
+        console.print(f"[red]✗ 无效的相机类型: {camera_type} (应为 'ir', 'wide', 或 'zoom')[/red]")
+        raise ValueError(f"camera_type must be one of ['ir', 'wide', 'zoom'], got {camera_type}")
 
     # 变焦倍数范围检查（统一策略：1-112）
     if not 1 <= zoom_factor <= 112:
-        console.print(
-            f"[red]✗ 变焦倍数超出范围: {zoom_factor} (应在 1-112)[/red]"
-        )
+        console.print(f"[red]✗ 变焦倍数超出范围: {zoom_factor} (应在 1-112)[/red]")
         raise ValueError(f"zoom_factor must be in range [1, 112], got {zoom_factor}")
 
     # 生成 seq
@@ -302,7 +298,7 @@ def set_camera_zoom(
                 },
                 "blue",
             )
-        mqtt_client.client.publish(topic, json.dumps(payload), qos=0)
+        _publish_drc_down(mqtt_client, payload)
         console.print(
             f"[cyan]→[/cyan] 变焦指令已发送: {camera_type} zoom={zoom_factor}x (payload: {payload_index})"
         )
@@ -333,7 +329,6 @@ def camera_screen_split(
     if seq is None:
         seq = _next_seq()
 
-    topic = f"thing/product/{mqtt_client.gateway_sn}/drc/down"
     payload = {
         "seq": seq,
         "method": "drc_camera_screen_split",
@@ -344,11 +339,9 @@ def camera_screen_split(
     }
 
     try:
-        mqtt_client.client.publish(topic, json.dumps(payload), qos=0)
+        _publish_drc_down(mqtt_client, payload)
         status = "开启" if enable else "关闭"
-        console.print(
-            f"[cyan]→[/cyan] 分屏指令已发送: {status} (payload: {payload_index})"
-        )
+        console.print(f"[cyan]→[/cyan] 分屏指令已发送: {status} (payload: {payload_index})")
     except Exception as e:
         console.print(f"[red]✗ 分屏指令发送失败: {e}[/red]")
         raise
@@ -402,8 +395,7 @@ def drc_live_lens_change(
         normalized_video_type = "thermal"
     if normalized_video_type not in ("wide", "zoom", "thermal"):
         raise ValueError(
-            "video_type must be one of ['wide', 'zoom', 'thermal'], "
-            f"got {video_type!r}"
+            f"video_type must be one of ['wide', 'zoom', 'thermal'], got {video_type!r}"
         )
 
     if seq is None:
@@ -428,7 +420,7 @@ def drc_live_lens_change(
                 {"topic": topic, "qos": 0, "payload": payload},
                 "blue",
             )
-        mqtt_client.client.publish(topic, json.dumps(payload), qos=0)
+        _publish_drc_down(mqtt_client, payload)
         console.print(
             f"[cyan]→[/cyan] 镜头切换指令已发送: {normalized_video_type} (payload: {payload_index})"
         )
@@ -509,7 +501,7 @@ def take_photo(
                 {"topic": topic, "qos": 0, "payload": payload},
                 "blue",
             )
-        mqtt_client.client.publish(topic, json.dumps(payload), qos=0)
+        _publish_drc_down(mqtt_client, payload)
         console.print(f"[cyan]→[/cyan] 拍照指令已发送 (payload: {payload_index})")
     except Exception as e:
         console.print(f"[red]✗ 拍照指令发送失败: {e}[/red]")
@@ -545,10 +537,7 @@ def take_photo_wait(
             payload = json.loads(msg.payload.decode())
         except Exception:
             payload = {}
-        if (
-            payload.get("method") == "drc_camera_photo_take"
-            and payload.get("seq") == seq
-        ):
+        if payload.get("method") == "drc_camera_photo_take" and payload.get("seq") == seq:
             data = payload.get("data", {})
             result_box["result"] = data.get("result")
             result_box["status"] = data.get("status")
@@ -650,7 +639,6 @@ def camera_look_at(
         seq = _next_seq()
 
     # 构建消息
-    topic = f"thing/product/{mqtt_client.gateway_sn}/drc/down"
     payload = {
         "seq": seq,
         "method": "drc_camera_look_at",
@@ -665,7 +653,7 @@ def camera_look_at(
 
     # 发送（QoS 0，无响应）
     try:
-        mqtt_client.client.publish(topic, json.dumps(payload), qos=0)
+        _publish_drc_down(mqtt_client, payload)
         console.print(
             f"[cyan]→[/cyan] Look At 指令已发送: "
             f"lat={latitude:.6f}, lon={longitude:.6f}, h={height:.1f}m "
@@ -727,19 +715,14 @@ def camera_aim(
         raise ValueError(f"y must be in range [0, 1], got {y}")
 
     if camera_type not in ["ir", "wide", "zoom"]:
-        console.print(
-            f"[red]✗ 无效的相机类型: {camera_type} (应为 'ir', 'wide', 或 'zoom')[/red]"
-        )
-        raise ValueError(
-            f"camera_type must be one of ['ir', 'wide', 'zoom'], got {camera_type}"
-        )
+        console.print(f"[red]✗ 无效的相机类型: {camera_type} (应为 'ir', 'wide', 或 'zoom')[/red]")
+        raise ValueError(f"camera_type must be one of ['ir', 'wide', 'zoom'], got {camera_type}")
 
     # 生成 seq
     if seq is None:
         seq = _next_seq()
 
     # 构建消息
-    topic = f"thing/product/{mqtt_client.gateway_sn}/drc/down"
     payload = {
         "seq": seq,
         "method": "drc_camera_aim",
@@ -754,7 +737,7 @@ def camera_aim(
 
     # 发送（QoS 0，无响应）
     try:
-        mqtt_client.client.publish(topic, json.dumps(payload), qos=0)
+        _publish_drc_down(mqtt_client, payload)
         console.print(
             f"[cyan]→[/cyan] AIM 指令已发送: "
             f"x={x:.2f}, y={y:.2f}, camera={camera_type} "

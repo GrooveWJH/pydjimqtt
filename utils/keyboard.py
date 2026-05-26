@@ -47,9 +47,7 @@ MAX_VALUE = 1684
 class JoystickWidget(Static):
     """虚拟摇杆组件"""
 
-    def __init__(
-        self, title: str, x_label: str, y_label: str, scale: float = 1.0, **kwargs
-    ):
+    def __init__(self, title: str, x_label: str, y_label: str, scale: float = 1.0, **kwargs):
         super().__init__(**kwargs)
         self.title = title
         self.x_label = x_label
@@ -127,9 +125,7 @@ class JoystickWidget(Static):
         for y in range(size, -size - 1, -1):
             line_text = Text()
             for x in range(-size, size + 1):
-                char, style = self._get_cell_style(
-                    x, y, x_pos, y_pos, x_percent, y_percent, size
-                )
+                char, style = self._get_cell_style(x, y, x_pos, y_pos, x_percent, y_percent, size)
                 line_text.append(char, style=style if style else None)
             lines.append(line_text)
 
@@ -185,9 +181,7 @@ class ControlsWidget(Static):
         table.add_row("P", "暂停/恢复")
         table.add_row("Ctrl+C", "退出")
 
-        return Panel(
-            table, title="[bold cyan]🎮 控制说明[/bold cyan]", border_style="cyan"
-        )
+        return Panel(table, title="[bold cyan]🎮 控制说明[/bold cyan]", border_style="cyan")
 
 
 class KeyStatusWidget(Static):
@@ -417,11 +411,7 @@ class JoystickApp(App):
         key_char, is_shift = self._normalize_key(key)
 
         if key_char == "b":
-            if (
-                self.on_emergency_stop
-                and not self.paused
-                and not self._emergency_stop_armed
-            ):
+            if self.on_emergency_stop and not self.paused and not self._emergency_stop_armed:
                 self._emergency_stop_armed = True
                 self.call_from_thread(self.on_emergency_stop)
             return
@@ -515,12 +505,8 @@ class JoystickApp(App):
             self.stick_state["roll"] = NEUTRAL + FULL_RANGE
 
         # 更新摇杆显示
-        self.left_joystick.update_values(
-            self.stick_state["yaw"], self.stick_state["throttle"]
-        )
-        self.right_joystick.update_values(
-            self.stick_state["roll"], self.stick_state["pitch"]
-        )
+        self.left_joystick.update_values(self.stick_state["yaw"], self.stick_state["throttle"])
+        self.right_joystick.update_values(self.stick_state["roll"], self.stick_state["pitch"])
 
         # 如果有回调且未暂停，且有按键按下时，调用回调传递摇杆状态
         if self.on_stick_update and not self.paused and current_keys:

@@ -17,7 +17,7 @@ from .commands import (
     setup_drc_connection,
     setup_multiple_drc_connections,
 )
-from .heartbeat import start_heartbeat, stop_heartbeat
+from .heartbeat import HeartbeatHandle, start_heartbeat, stop_heartbeat
 from .drc_commands import (
     send_stick_control,
     set_camera_zoom,
@@ -50,6 +50,7 @@ __all__ = [
     "return_home",
     "fly_to_point",
     # 心跳
+    "HeartbeatHandle",
     "start_heartbeat",
     "stop_heartbeat",
     # DRC 杆量控制

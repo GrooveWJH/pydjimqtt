@@ -11,54 +11,33 @@ def clamp(value: float, low: float, high: float) -> float:
 
 
 @dataclass(frozen=True)
-class PitchCommand:
-    speed: float
-    duration: float
-    expected_delta: float
-
-
-@dataclass(frozen=True)
 class PitchObservation:
     speed: float
     duration: float
     actual_delta: float
 
 
-class PitchPulsePlanner:
+class PitchSpeedPlanner:
     def __init__(self, profile: GimbalPitchProfile) -> None:
         self.profile = profile
 
-    def plan(self, *, current: float, target: float) -> PitchCommand | None:
+    def plan(self, *, current: float, target: float) -> float:
         error = target - current
         if abs(error) <= self.profile.settle_tolerance_deg:
-            return None
+            return 0.0
 
-        velocity = self.profile.model.velocity_for_delta(error)
-        if velocity <= 0:
-            return None
-
-        speed_limit = min(
-            abs(self.profile.coarse_speed),
-            abs(self.profile.model.max_effective_speed),
+        speed_limit = min(abs(self.profile.max_speed), abs(self.profile.model.max_effective_speed))
+        proportional_speed = abs(error) * self.profile.proportional_gain
+        floor_speed = (
+            self.profile.near_target_speed
+            if abs(error) <= self.profile.near_target_error_deg
+            else self.profile.min_speed
         )
-        speed = math.copysign(max(speed_limit, 1.0), error)
-        raw_duration = abs(error) / (velocity * abs(speed))
-        scale = (
-            self.profile.duration_scale_up
-            if error >= 0
-            else self.profile.duration_scale_down
+        speed = math.copysign(
+            clamp(proportional_speed, floor_speed, speed_limit),
+            error,
         )
-        duration = clamp(
-            raw_duration * scale,
-            self.profile.min_pulse_s,
-            self.profile.max_pulse_s,
-        )
-        expected_delta = math.copysign(velocity * abs(speed) * duration, error)
-        return PitchCommand(
-            speed=round(speed, 3),
-            duration=round(duration, 3),
-            expected_delta=round(expected_delta, 3),
-        )
+        return round(speed, 3)
 
 
 def update_profile_from_observation(
@@ -70,9 +49,7 @@ def update_profile_from_observation(
     denominator = abs(observation.speed) * observation.duration
     if denominator <= 0 or abs(observation.actual_delta) < 0.5:
         return profile
-    if math.copysign(1.0, observation.speed) != math.copysign(
-        1.0, observation.actual_delta
-    ):
+    if math.copysign(1.0, observation.speed) != math.copysign(1.0, observation.actual_delta):
         return profile
 
     measured = abs(observation.actual_delta) / denominator

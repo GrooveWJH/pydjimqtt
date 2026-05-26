@@ -8,7 +8,7 @@ DJI 无人机键盘控制（复用 keyboard.py 的输入逻辑）
 import sys
 import time
 from pathlib import Path
-from typing import TYPE_CHECKING
+from typing import Any
 
 from pydjimqtt import (
     MQTTClient,
@@ -21,13 +21,10 @@ from pydjimqtt import (
     stop_heartbeat,
 )
 
-if TYPE_CHECKING:
-    from pydjimqtt.utils.keyboard import JoystickApp  # noqa: F401
-
 # ========== 配置参数 ==========
-CONFIG = {
-    "gateway_sn": "9N9CN2B00121JN",
-    "mqtt_host": "192.168.11.100",
+CONFIG: dict[str, Any] = {
+    "gateway_sn": "9N9CN2E00128GD",
+    "mqtt_host": "192.168.10.225",
     "mqtt_port": 1883,
     "mqtt_username": "admin",
     "mqtt_password": "yundrone123",
@@ -146,9 +143,7 @@ def main():
             mqtt_client.disconnect()
             return 1
 
-        console.print(
-            "\n[bold green]控制权请求已发送，请在遥控器上点击确认授权。[/bold green]"
-        )
+        console.print("\n[bold green]控制权请求已发送，请在遥控器上点击确认授权。[/bold green]")
         if CONFIG["auto_confirm_auth"]:
             console.print("[bold cyan]自动等待 3 秒后继续...[/bold cyan]")
             time.sleep(3)
@@ -184,9 +179,7 @@ def main():
 
     console.print("\n[bold green]✓ 初始化完成！启动 TUI...[/bold green]")
     console.print("[green]✓ 自动焦点检测已启用（失去焦点时自动不响应）[/green]")
-    console.print(
-        "[bold cyan]💡 按 Shift+P 可暂停（暂停时可切换到其他窗口打字）[/bold cyan]\n"
-    )
+    console.print("[bold cyan]💡 按 Shift+P 可暂停（暂停时可切换到其他窗口打字）[/bold cyan]\n")
 
     try:
         # 定义 MQTT 发送回调（核心：唯一的新功能）

@@ -14,7 +14,7 @@ class ServiceCaller:
         self.mqtt = mqtt_client
         self.timeout = timeout
 
-    def call(self, method: str, data: Dict[str, Any] = None) -> Dict[str, Any]:
+    def call(self, method: str, data: Dict[str, Any] | None = None) -> Dict[str, Any]:
         """
         调用服务并等待响应
 

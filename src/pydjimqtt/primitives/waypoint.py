@@ -13,7 +13,7 @@ console = Console()
 
 def fly_to_waypoint(
     caller: ServiceCaller, lat: float, lon: float, height: float, max_speed: int = 12
-) -> Dict[str, Any]:
+) -> str:
     """
     飞向单个航点（封装 fly_to_point）
 
@@ -30,9 +30,7 @@ def fly_to_waypoint(
     Example:
         >>> fly_to_waypoint(caller, lat=39.0427514, lon=117.7238255, height=100.0)
     """
-    return fly_to_point(
-        caller, latitude=lat, longitude=lon, height=height, max_speed=max_speed
-    )
+    return fly_to_point(caller, latitude=lat, longitude=lon, height=height, max_speed=max_speed)
 
 
 def monitor_flyto_progress(

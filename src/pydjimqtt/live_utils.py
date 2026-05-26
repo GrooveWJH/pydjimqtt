@@ -89,9 +89,7 @@ def start_live(
         }
 
         # 打印接收的响应
-        print_json_message(
-            "📥 接收 MQTT 响应 (live_start_push)", full_response, "green"
-        )
+        print_json_message("📥 接收 MQTT 响应 (live_start_push)", full_response, "green")
 
         # 判定成功：data.result == 0
         if result.get("result") == 0:
@@ -246,15 +244,11 @@ def set_live_quality(caller, video_id: str, video_quality: int) -> bool:
         }
 
         # 打印接收的响应
-        print_json_message(
-            "📥 接收 MQTT 响应 (live_set_quality)", full_response, "green"
-        )
+        print_json_message("📥 接收 MQTT 响应 (live_set_quality)", full_response, "green")
 
         # 判定成功：data.result == 0
         if result.get("result") == 0:
-            console.print(
-                f"\n[bold green]✓ 清晰度已设置为 {quality_name}！[/bold green]"
-            )
+            console.print(f"\n[bold green]✓ 清晰度已设置为 {quality_name}！[/bold green]")
 
             # 显示额外信息（如果有）
             output = result.get("output", {})
@@ -274,9 +268,7 @@ def set_live_quality(caller, video_id: str, video_quality: int) -> bool:
         return False
 
 
-def zoom_control_loop(
-    mqtt_client, payload_index: str, camera_type: str = "zoom"
-) -> bool:
+def zoom_control_loop(mqtt_client, payload_index: str, camera_type: str = "zoom") -> bool:
     """
     键盘控制变焦循环
 
@@ -309,9 +301,7 @@ def zoom_control_loop(
     console.print("  [green]↑[/green] - 放大 (zoom in)")
     console.print("  [green]↓[/green] - 缩小 (zoom out)")
     console.print("  [red]q[/red] 或 [red]ESC[/red] - 退出并停止直播")
-    console.print(
-        f"\n[dim]当前变焦: {zoom_factor}x (范围: {min_zoom}-{max_zoom}x)[/dim]\n"
-    )
+    console.print(f"\n[dim]当前变焦: {zoom_factor}x (范围: {min_zoom}-{max_zoom}x)[/dim]\n")
 
     stop_flag = threading.Event()
 
@@ -331,9 +321,7 @@ def zoom_control_loop(
                         console.print(
                             f"[cyan]↑[/cyan] 放大至 [bold green]{zoom_factor:.1f}x[/bold green]"
                         )
-                        set_camera_zoom(
-                            mqtt_client, payload_index, zoom_factor, camera_type
-                        )
+                        set_camera_zoom(mqtt_client, payload_index, zoom_factor, camera_type)
                     else:
                         console.print(f"[yellow]已达到最大变焦 ({max_zoom}x)[/yellow]")
 
@@ -345,9 +333,7 @@ def zoom_control_loop(
                         console.print(
                             f"[cyan]↓[/cyan] 缩小至 [bold green]{zoom_factor:.1f}x[/bold green]"
                         )
-                        set_camera_zoom(
-                            mqtt_client, payload_index, zoom_factor, camera_type
-                        )
+                        set_camera_zoom(mqtt_client, payload_index, zoom_factor, camera_type)
                     else:
                         console.print(f"[yellow]已达到最小变焦 ({min_zoom}x)[/yellow]")
 

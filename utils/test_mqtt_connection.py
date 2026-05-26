@@ -22,9 +22,7 @@ def on_connect(client, userdata, flags, reason_code, properties):
         console.print("[bold green]✓ 连接成功！[/bold green]")
         console.print(f"[dim]Client ID: {client._client_id.decode()}[/dim]")
         # flags 是 ConnectFlags 对象，用属性访问
-        session_present = (
-            flags.session_present if hasattr(flags, "session_present") else False
-        )
+        session_present = flags.session_present if hasattr(flags, "session_present") else False
         console.print(f"[dim]Session Present: {session_present}[/dim]")
     else:
         error_messages = {

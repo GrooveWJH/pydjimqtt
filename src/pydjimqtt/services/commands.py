@@ -6,13 +6,20 @@ DJI 云端服务调用 - 统一接口
 
 import time
 import json
-import threading
 from typing import Dict, Any, Optional, Tuple, List
 from concurrent.futures import ThreadPoolExecutor
 from ..core import ServiceCaller, MQTTClient
+from .heartbeat import HeartbeatHandle
 from rich.console import Console
 
 console = Console()
+
+
+def _publish_drc_down(mqtt_client: MQTTClient, payload: Dict[str, Any]) -> None:
+    if mqtt_client.client is None:
+        raise RuntimeError("MQTT client is not connected")
+    topic = f"thing/product/{mqtt_client.gateway_sn}/drc/down"
+    mqtt_client.client.publish(topic, json.dumps(payload), qos=0)
 
 
 def _call_service(
@@ -46,9 +53,7 @@ def _call_service(
         else:
             # 提取详细错误信息
             error_code = result.get("result", "unknown")
-            error_msg = result.get(
-                "message", result.get("output", {}).get("msg", "Unknown error")
-            )
+            error_msg = result.get("message", result.get("output", {}).get("msg", "Unknown error"))
 
             # 打印详细错误信息（仅针对错误情况）
             console.print("[red]✗ 服务调用失败:[/red]")
@@ -58,9 +63,7 @@ def _call_service(
             console.print(f"  [dim]完整响应: {result}[/dim]")
 
             # 增强异常消息，包含完整响应以便调试
-            raise Exception(
-                f"{method} 失败 (code={error_code}): {error_msg} | 完整响应: {result}"
-            )
+            raise Exception(f"{method} 失败 (code={error_code}): {error_msg} | 完整响应: {result}")
 
     except Exception as e:
         console.print(f"[red]✗ {method}: {e}[/red]")
@@ -92,9 +95,7 @@ def request_control_auth(
 def release_control_auth(caller: ServiceCaller) -> Dict[str, Any]:
     """释放控制权"""
     console.print("[cyan]释放控制权...[/cyan]")
-    return _call_service(
-        caller, "cloud_control_auth_release", success_msg="控制权已释放"
-    )
+    return _call_service(caller, "cloud_control_auth_release", success_msg="控制权已释放")
 
 
 # ========== DRC 模式 ==========
@@ -161,9 +162,7 @@ def change_live_lens(
     )
 
 
-def set_live_quality(
-    caller: ServiceCaller, video_id: str, video_quality: int
-) -> Dict[str, Any]:
+def set_live_quality(caller: ServiceCaller, video_id: str, video_quality: int) -> Dict[str, Any]:
     """
     设置直播清晰度
 
@@ -222,9 +221,7 @@ def start_live_push(
 def stop_live_push(caller: ServiceCaller, video_id: str) -> Dict[str, Any]:
     """停止直播推流"""
     console.print(f"[cyan]停止直播推流: {video_id}[/cyan]")
-    return _call_service(
-        caller, "live_stop_push", {"video_id": video_id}, "直播推流已停止"
-    )
+    return _call_service(caller, "live_stop_push", {"video_id": video_id}, "直播推流已停止")
 
 
 # ========== 飞行控制 ==========
@@ -296,9 +293,7 @@ def fly_to_point(
         {
             "fly_to_id": fly_to_id,
             "max_speed": max_speed,
-            "points": [
-                {"latitude": latitude, "longitude": longitude, "height": height}
-            ],
+            "points": [{"latitude": latitude, "longitude": longitude, "height": height}],
         },
         "Fly-to 指令已发送",
     )
@@ -354,7 +349,6 @@ def send_stick_control(
     if not (364 <= yaw <= 1684):
         raise ValueError(f"yaw 必须在 [364, 1684] 范围内，当前值: {yaw}")
 
-    topic = f"thing/product/{mqtt_client.gateway_sn}/drc/down"
     seq = int(time.time() * 1000)
 
     payload = {
@@ -364,7 +358,7 @@ def send_stick_control(
     }
 
     # 发送控制指令（QoS 0，无回包机制）
-    mqtt_client.client.publish(topic, json.dumps(payload), qos=0)
+    _publish_drc_down(mqtt_client, payload)
 
 
 # ========== DRC 连接设置 ==========
@@ -380,7 +374,7 @@ def setup_drc_connection(
     heartbeat_interval: float = 1.0,
     wait_for_user: bool = True,
     skip_drc_setup: bool = False,
-) -> Tuple[MQTTClient, ServiceCaller, Optional[threading.Thread]]:
+) -> Tuple[MQTTClient, ServiceCaller, Optional[HeartbeatHandle]]:
     """
     Setup complete DRC connection in one call.
 
@@ -473,13 +467,13 @@ def setup_drc_connection(
 
 
 def setup_multiple_drc_connections(
-    uav_configs: List[Dict[str, str]],
+    uav_configs: List[Dict[str, Any]],
     mqtt_config: Dict[str, Any],
     osd_frequency: int = 30,
     hsi_frequency: int = 10,
     heartbeat_interval: float = 1.0,
     skip_drc_setup: bool = False,
-) -> List[Tuple[MQTTClient, ServiceCaller, threading.Thread]]:
+) -> List[Tuple[MQTTClient, ServiceCaller, HeartbeatHandle]]:
     """
     Setup multiple DRC connections in parallel (3x faster than sequential).
 
@@ -516,9 +510,7 @@ def setup_multiple_drc_connections(
     from ..services.heartbeat import start_heartbeat
 
     if skip_drc_setup:
-        console.print(
-            f"[bold yellow]仅连接 MQTT ({len(uav_configs)} 架无人机)[/bold yellow]"
-        )
+        console.print(f"[bold yellow]仅连接 MQTT ({len(uav_configs)} 架无人机)[/bold yellow]")
         console.print("[dim]跳过控制权请求和 DRC 模式设置[/dim]\n")
 
         # 只建立 MQTT 连接，不请求控制权和 DRC 模式
@@ -531,11 +523,11 @@ def setup_multiple_drc_connections(
             mqtt.connect()
             caller = ServiceCaller(mqtt)
 
-            # 不启动心跳（因为没有进入 DRC 模式）
-            # 创建一个空的 MockHeartbeatThread 占位
+            # 不启动真实心跳（因为没有进入 DRC 模式），使用空句柄保持返回接口一致。
             from ..mock.mock_drone import MockHeartbeatThread
 
-            heartbeat = MockHeartbeatThread()
+            thread = MockHeartbeatThread()
+            heartbeat = HeartbeatHandle(thread=thread, stop_flag=thread.stop_flag)
 
             connections.append((mqtt, caller, heartbeat))
             console.print(f"[green]✓ {sn} MQTT 已连接[/green]")
@@ -546,9 +538,7 @@ def setup_multiple_drc_connections(
         return connections
 
     # 正常的 DRC 连接流程
-    console.print(
-        f"[bold cyan]并行设置 {len(uav_configs)} 架无人机的 DRC 连接[/bold cyan]\n"
-    )
+    console.print(f"[bold cyan]并行设置 {len(uav_configs)} 架无人机的 DRC 连接[/bold cyan]\n")
 
     # Phase 1: Parallel connect + auth request
     def phase1_connect_and_auth(config):
@@ -644,7 +634,6 @@ def reset_gimbal(mqtt_client: MQTTClient, payload_index: str, reset_mode: int) -
         raise ValueError(f"reset_mode 必须在 [0, 3] 范围内，当前值: {reset_mode}")
 
     # 构建消息（使用 seq，不是 tid）
-    topic = f"thing/product/{mqtt_client.gateway_sn}/drc/down"
     seq = int(time.time() * 1000)
 
     payload = {
@@ -654,7 +643,7 @@ def reset_gimbal(mqtt_client: MQTTClient, payload_index: str, reset_mode: int) -
     }
 
     # 发送指令（QoS 0，无回包机制）
-    mqtt_client.client.publish(topic, json.dumps(payload), qos=0)
+    _publish_drc_down(mqtt_client, payload)
 
     # 发送成功反馈
     console.print(f"[bright_green]✓ 云台{mode_name}指令已发送[/bright_green]")

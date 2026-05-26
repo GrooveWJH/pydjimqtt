@@ -43,9 +43,7 @@ def create_takeoff_table(runners: List[MissionRunner]) -> Table:
         >>>         live.update(create_takeoff_table(runners))
         >>>         time.sleep(0.25)
     """
-    table = Table(
-        title="[bold bright_cyan]起飞进度监控[/bold bright_cyan]", show_header=True
-    )
+    table = Table(title="[bold bright_cyan]起飞进度监控[/bold bright_cyan]", show_header=True)
     table.add_column("无人机", style="bright_yellow", width=10)
     table.add_column("序列号", style="bright_cyan", width=16)
     table.add_column("状态", style="bold", width=20)
@@ -77,9 +75,7 @@ def create_takeoff_table(runners: List[MissionRunner]) -> Table:
     return table
 
 
-def create_trajectory_table(
-    runners: List[MissionRunner], mission_state: Dict[str, Any]
-) -> Table:
+def create_trajectory_table(runners: List[MissionRunner], mission_state: Dict[str, Any]) -> Table:
     """
     创建轨迹飞行进度监控表格
 
@@ -123,9 +119,7 @@ def create_trajectory_table(
         >>>         live.update(create_trajectory_table(runners, mission_state))
         >>>         time.sleep(0.5)
     """
-    table = Table(
-        title="[bold bright_cyan]轨迹飞行实时进度[/bold bright_cyan]", show_header=True
-    )
+    table = Table(title="[bold bright_cyan]轨迹飞行实时进度[/bold bright_cyan]", show_header=True)
     table.add_column("无人机", style="bright_yellow", width=10)
     table.add_column("任务状态", style="bold", width=18)
     table.add_column("航点进度", style="bright_magenta", width=12)

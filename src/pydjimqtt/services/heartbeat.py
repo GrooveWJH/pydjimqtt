@@ -5,13 +5,23 @@ DRC 心跳维持服务
 import time
 import json
 import threading
+from dataclasses import dataclass
 from ..core import MQTTClient
 from rich.console import Console
 
 console = Console()
 
 
-def start_heartbeat(mqtt_client: MQTTClient, interval: float = 0.2) -> threading.Thread:
+@dataclass(frozen=True)
+class HeartbeatHandle:
+    thread: threading.Thread
+    stop_flag: threading.Event
+
+    def is_alive(self) -> bool:
+        return self.thread.is_alive()
+
+
+def start_heartbeat(mqtt_client: MQTTClient, interval: float = 0.2) -> HeartbeatHandle:
     """
     启动 DRC 心跳后台线程
 
@@ -51,6 +61,8 @@ def start_heartbeat(mqtt_client: MQTTClient, interval: float = 0.2) -> threading
 
             # 发送心跳（QoS 0，不等待响应）
             try:
+                if mqtt_client.client is None:
+                    raise RuntimeError("MQTT client is not connected")
                 mqtt_client.client.publish(topic, json.dumps(payload), qos=0)
             except Exception as e:
                 console.print(f"[yellow]心跳发送失败: {e}[/yellow]")
@@ -62,28 +74,24 @@ def start_heartbeat(mqtt_client: MQTTClient, interval: float = 0.2) -> threading
 
     # 创建并启动线程
     thread = threading.Thread(target=heartbeat_loop, daemon=True)
-    thread.stop_flag = stop_flag  # 存储停止标志，供 stop_heartbeat 使用
     thread.start()
 
-    console.print(
-        f"[green]✓ 心跳已启动 (间隔: {interval}s, 频率: {1.0 / interval:.1f}Hz)[/green]"
-    )
-    return thread
+    console.print(f"[green]✓ 心跳已启动 (间隔: {interval}s, 频率: {1.0 / interval:.1f}Hz)[/green]")
+    return HeartbeatHandle(thread=thread, stop_flag=stop_flag)
 
 
-def stop_heartbeat(thread: threading.Thread):
+def stop_heartbeat(handle: HeartbeatHandle):
     """
     停止心跳线程
 
     Args:
-        thread: 由 start_heartbeat 返回的线程对象
+        handle: 由 start_heartbeat 返回的心跳句柄
     """
-    if hasattr(thread, "stop_flag"):
-        thread.stop_flag.set()
-        thread.join(timeout=5)
+    handle.stop_flag.set()
+    handle.thread.join(timeout=5)
 
-        # 检查线程是否正常退出
-        if thread.is_alive():
-            console.print("[red]⚠ 心跳线程未能正常退出[/red]")
-        else:
-            console.print("[yellow]心跳已停止[/yellow]")
+    # 检查线程是否正常退出
+    if handle.thread.is_alive():
+        console.print("[red]⚠ 心跳线程未能正常退出[/red]")
+    else:
+        console.print("[yellow]心跳已停止[/yellow]")

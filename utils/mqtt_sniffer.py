@@ -30,7 +30,7 @@ import json
 from pathlib import Path
 from datetime import datetime
 from collections import defaultdict
-from typing import Dict, Any, List
+from typing import Dict, Any, List, Optional
 
 # 动态路径解析 - 支持从任意位置运行
 script_dir = Path(__file__).resolve().parent
@@ -45,7 +45,7 @@ from rich.panel import Panel  # noqa: E402
 from rich.columns import Columns  # noqa: E402
 
 # 导入重构后的 pydjimqtt - 使用统一的 DRC 连接函数
-from pydjimqtt import MQTTClient, setup_drc_connection, stop_heartbeat  # noqa: E402
+from pydjimqtt import HeartbeatHandle, MQTTClient, setup_drc_connection, stop_heartbeat  # noqa: E402
 
 # ======== 配置 ========
 MQTT_CONFIG = {
@@ -91,6 +91,9 @@ class TopicSniffer:
     def __init__(self, mqtt_client: MQTTClient, topics: List[str]):
         self.mqtt = mqtt_client
         self.topics = topics
+        client = mqtt_client.client
+        if client is None:
+            raise RuntimeError("MQTT client is not connected")
         # 为每个 topic 维护独立的统计信息
         self.topic_stats: Dict[str, Dict[str, Any]] = {}
         for topic in topics:
@@ -103,11 +106,11 @@ class TopicSniffer:
             }
         self.start_time = time.time()
         # 包装原始消息处理器（保留 pydjimqtt 的响应处理逻辑）
-        self._original_on_message = mqtt_client.client.on_message
-        mqtt_client.client.on_message = self._on_message_wrapper
+        self._original_on_message = client.on_message
+        client.on_message = self._on_message_wrapper
         # 订阅所有嗅探 topic
         for topic in topics:
-            mqtt_client.client.subscribe(topic, qos=0)
+            client.subscribe(topic, qos=0)
 
     def _on_message_wrapper(self, client, userdata, msg):
         """
@@ -118,17 +121,13 @@ class TopicSniffer:
         2. 嗅探器不干扰正常的请求-响应流程
         3. 同时捕获所有监听 topic 的消息数据
         """
-        if (
-            self._original_on_message
-        ):  # 优先让 pydjimqtt 处理服务响应（/services_reply）
+        if self._original_on_message:  # 优先让 pydjimqtt 处理服务响应（/services_reply）
             self._original_on_message(client, userdata, msg)
         # 嗅探器捕获监听的 topic
         if msg.topic in self.topics:
             try:
                 payload = json.loads(msg.payload.decode())
-                method = payload.get(
-                    "method", payload.get("event_name", "unknown")
-                )  # 兼容不同格式
+                method = payload.get("method", payload.get("event_name", "unknown"))  # 兼容不同格式
                 stats = self.topic_stats[msg.topic]
                 now = time.time()
                 # 更新统计信息
@@ -176,11 +175,7 @@ class TopicSniffer:
                 table.add_row(method, str(count), freq_str)
             if stats["total_count"] > 0:
                 tables.append(table)
-        combined = (
-            Columns(tables, equal=True, expand=True)
-            if tables
-            else "[dim]暂无消息[/dim]"
-        )
+        combined = Columns(tables, equal=True, expand=True) if tables else "[dim]暂无消息[/dim]"
         runtime = time.time() - self.start_time
         summary = " | ".join(
             [
@@ -226,9 +221,7 @@ class TopicSniffer:
                         ).isoformat()
                         if method in stats["first_time"]
                         else None,
-                        "last_time": datetime.fromtimestamp(
-                            stats["last_time"][method]
-                        ).isoformat()
+                        "last_time": datetime.fromtimestamp(stats["last_time"][method]).isoformat()
                         if method in stats["last_time"]
                         else None,
                     }
@@ -265,7 +258,8 @@ class TopicSniffer:
 def main() -> int:
     """主函数 - 使用 setup_drc_connection 简化连接流程"""
     console = Console()
-    mqtt, heartbeat = None, None
+    mqtt: Optional[MQTTClient] = None
+    heartbeat: Optional[HeartbeatHandle] = None
 
     try:
         # ========== 1. 建立 DRC 连接（或仅 MQTT 连接）==========
@@ -291,18 +285,12 @@ def main() -> int:
 
         # ========== 2. 启动嗅探器 ==========
         console.rule("[bold cyan]启动 MQTT 嗅探器[/bold cyan]")
-        console.print(
-            f"[bold green]正在监听 {len(SNIFF_TOPICS)} 个 topic...[/bold green]"
-        )
-        console.print(
-            "[bold yellow]按 Ctrl+C 停止嗅探、保存数据并退出。[/bold yellow]\n"
-        )
+        console.print(f"[bold green]正在监听 {len(SNIFF_TOPICS)} 个 topic...[/bold green]")
+        console.print("[bold yellow]按 Ctrl+C 停止嗅探、保存数据并退出。[/bold yellow]\n")
         sniffer = TopicSniffer(mqtt, SNIFF_TOPICS)
 
         # ========== 3. 实时显示监控面板 ==========
-        with Live(
-            sniffer.render_status(), refresh_per_second=2, console=console
-        ) as live:
+        with Live(sniffer.render_status(), refresh_per_second=2, console=console) as live:
             while True:
                 time.sleep(0.5)
                 live.update(sniffer.render_status())

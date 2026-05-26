@@ -2,7 +2,9 @@ from __future__ import annotations
 
 import json
 from types import SimpleNamespace
+from typing import cast
 
+from pydjimqtt import MQTTClient
 from pydjimqtt.services import drc_commands
 
 
@@ -32,12 +34,13 @@ def test_take_photo_wait_returns_request_payload_index(monkeypatch) -> None:
             "data": {"result": 0},
         }
         msg = SimpleNamespace(payload=json.dumps(response_payload).encode("utf-8"))
+        assert mqtt_client.client.on_message is not None
         mqtt_client.client.on_message(None, None, msg)
 
     monkeypatch.setattr(drc_commands, "take_photo", _fake_take_photo)
 
     result = drc_commands.take_photo_wait(
-        mqtt_client,
+        cast(MQTTClient, mqtt_client),
         payload_index="89-0-0",
         timeout=0.1,
         seq=1179935,

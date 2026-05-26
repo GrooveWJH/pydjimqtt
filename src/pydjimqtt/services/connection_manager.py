@@ -19,7 +19,7 @@ from rich.console import Console
 
 from ..core import MQTTClient, ServiceCaller
 from .commands import enter_drc_mode, request_control_auth
-from .heartbeat import start_heartbeat, stop_heartbeat
+from .heartbeat import HeartbeatHandle, start_heartbeat, stop_heartbeat
 
 console = Console()
 
@@ -85,7 +85,7 @@ class DRCConnectionManager:
         self.state_lock = threading.Lock()
 
         # 心跳线程
-        self.heartbeat_thread = None
+        self.heartbeat_thread: Optional[HeartbeatHandle] = None
 
         # 监控线程
         self.monitor_thread = None
@@ -112,7 +112,7 @@ class DRCConnectionManager:
         """判断是否正在重连"""
         return self.get_state() == ConnectionState.RECONNECTING
 
-    def get_heartbeat_thread(self):
+    def get_heartbeat_thread(self) -> Optional[HeartbeatHandle]:
         """
         获取当前心跳线程引用（线程安全）
 
@@ -253,7 +253,7 @@ class DRCConnectionManager:
                     # 从重连状态恢复到在线
                     self._set_state(ConnectionState.ONLINE)
 
-    def start(self, heartbeat_thread: Optional[threading.Thread] = None):
+    def start(self, heartbeat_thread: Optional[HeartbeatHandle] = None):
         """
         启动连接管理器
 

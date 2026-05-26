@@ -18,7 +18,7 @@ import queue
 import time
 from dataclasses import dataclass, field
 from datetime import datetime
-from typing import Any
+from typing import Any, cast
 
 try:
     import paho.mqtt.client as mqtt
@@ -173,7 +173,9 @@ class HsiMqttClient:
                 pass
 
 
-def run_tk_viewer(mqtt_client: HsiMqttClient, msg_queue: queue.Queue[HsiFrame], max_plot_mm: int) -> None:
+def run_tk_viewer(
+    mqtt_client: HsiMqttClient, msg_queue: queue.Queue[HsiFrame], max_plot_mm: int
+) -> None:
     import tkinter as tk
     from tkinter import ttk
 
@@ -207,7 +209,9 @@ def run_tk_viewer(mqtt_client: HsiMqttClient, msg_queue: queue.Queue[HsiFrame], 
         ts_text = _fmt_ts(frame.ts_ms)
         points = len(frame.around_distances_mm)
         meta_var.set(f"method=hsi_info_push seq={frame.seq} ts={ts_text} around_points={points}")
-        dist_var.set(f"up/down: {_fmt_mm(frame.up_distance_mm)} / {_fmt_mm(frame.down_distance_mm)}")
+        dist_var.set(
+            f"up/down: {_fmt_mm(frame.up_distance_mm)} / {_fmt_mm(frame.down_distance_mm)}"
+        )
         switch_var.set(
             "front/back/left/right/up/down: "
             f"{_fmt_enable_work(frame.front_enable, frame.front_work)} / "
@@ -230,7 +234,9 @@ def run_tk_viewer(mqtt_client: HsiMqttClient, msg_queue: queue.Queue[HsiFrame], 
         for m in (2, 4, 6, 8, 10, 12):
             rr = r_max * min((m * 1000) / max_plot_mm, 1.0)
             c.create_oval(cx - rr, cy - rr, cx + rr, cy + rr, outline="#2c3a40")
-            c.create_text(cx + 4, cy - rr - 4, text=f"{m}m", anchor="w", fill="#7d8f9a", font=("Helvetica", 9))
+            c.create_text(
+                cx + 4, cy - rr - 4, text=f"{m}m", anchor="w", fill="#7d8f9a", font=("Helvetica", 9)
+            )
 
         for deg, label in ((0, "F"), (90, "R"), (180, "B"), (270, "L")):
             x, y = _polar_to_canvas(cx, cy, r_max, deg)
@@ -242,7 +248,9 @@ def run_tk_viewer(mqtt_client: HsiMqttClient, msg_queue: queue.Queue[HsiFrame], 
 
         points = frame.around_distances_mm
         if not points:
-            c.create_text(cx, cy, text="暂无 around_distances 数据", fill="#8ea3b0", font=("Helvetica", 14))
+            c.create_text(
+                cx, cy, text="暂无 around_distances 数据", fill="#8ea3b0", font=("Helvetica", 14)
+            )
             return
 
         n = len(points)
@@ -283,7 +291,9 @@ def run_tk_viewer(mqtt_client: HsiMqttClient, msg_queue: queue.Queue[HsiFrame], 
             changed = True
 
         online = "connected" if mqtt_client.connected else "disconnected"
-        stale = "N/A" if last_msg_monotonic <= 0 else f"{time.monotonic() - last_msg_monotonic:.1f}s"
+        stale = (
+            "N/A" if last_msg_monotonic <= 0 else f"{time.monotonic() - last_msg_monotonic:.1f}s"
+        )
         status_var.set(f"MQTT: {online} | topic: {mqtt_client.topic} | last_msg_age: {stale}")
 
         if changed:
@@ -306,7 +316,9 @@ def run_tk_viewer(mqtt_client: HsiMqttClient, msg_queue: queue.Queue[HsiFrame], 
     root.mainloop()
 
 
-def run_mpl_viewer(mqtt_client: HsiMqttClient, msg_queue: queue.Queue[HsiFrame], max_plot_mm: int) -> None:
+def run_mpl_viewer(
+    mqtt_client: HsiMqttClient, msg_queue: queue.Queue[HsiFrame], max_plot_mm: int
+) -> None:
     import matplotlib.pyplot as plt
     from matplotlib.animation import FuncAnimation
 
@@ -314,7 +326,7 @@ def run_mpl_viewer(mqtt_client: HsiMqttClient, msg_queue: queue.Queue[HsiFrame],
     last_msg_monotonic = 0.0
 
     fig = plt.figure("DRC 避障地图 (hsi_info_push)", figsize=(10, 8))
-    ax = fig.add_subplot(111, projection="polar")
+    ax = cast(Any, fig.add_subplot(111, projection="polar"))
     ax.set_theta_zero_location("N")
     ax.set_theta_direction(-1)
     ax.set_ylim(0, max_plot_mm / 1000.0)
@@ -372,7 +384,9 @@ def run_mpl_viewer(mqtt_client: HsiMqttClient, msg_queue: queue.Queue[HsiFrame],
             changed = True
 
         online = "connected" if mqtt_client.connected else "disconnected"
-        stale = "N/A" if last_msg_monotonic <= 0 else f"{time.monotonic() - last_msg_monotonic:.1f}s"
+        stale = (
+            "N/A" if last_msg_monotonic <= 0 else f"{time.monotonic() - last_msg_monotonic:.1f}s"
+        )
         info.set_text(f"MQTT: {online} | topic: {mqtt_client.topic} | last_msg_age: {stale}")
 
         info2.set_text(
@@ -430,7 +444,7 @@ def _fmt_mm(mm: int | None) -> str:
         return "N/A"
     if mm >= NO_OBSTACLE_MM:
         return ">=60m"
-    return f"{mm/1000:.2f}m"
+    return f"{mm / 1000:.2f}m"
 
 
 def _fmt_enable_work(enable: bool | None, work: bool | None) -> str:
@@ -441,7 +455,9 @@ def _fmt_enable_work(enable: bool | None, work: bool | None) -> str:
     return f"{e}/{w}"
 
 
-def _polar_to_canvas(cx: float, cy: float, radius: float, deg_cw_from_front: float) -> tuple[float, float]:
+def _polar_to_canvas(
+    cx: float, cy: float, radius: float, deg_cw_from_front: float
+) -> tuple[float, float]:
     rad = math.radians(deg_cw_from_front)
     x = cx + radius * math.sin(rad)
     y = cy - radius * math.cos(rad)
