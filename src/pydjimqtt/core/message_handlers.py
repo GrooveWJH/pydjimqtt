@@ -5,9 +5,26 @@ import time
 from typing import Any, Optional
 
 
+_DRC_TELEMETRY_METHODS = frozenset(
+    {
+        "osd_info_push",
+        "hsi_info_push",
+        "drc_batteries_info_push",
+        "drc_drone_state_push",
+        "drc_camera_osd_info_push",
+    }
+)
+
+
 def handle_message(client, msg, console) -> None:
     payload = json.loads(msg.payload.decode())
     method = payload.get("method")
+    if str(getattr(msg, "topic", "")).endswith("/drc/up"):
+        _track_drc_message(
+            client,
+            payload,
+            track_sequence=method in _DRC_TELEMETRY_METHODS,
+        )
     if method == "osd_info_push":
         _handle_osd(client, payload)
         return
@@ -47,6 +64,14 @@ def _handle_osd(client, payload: dict[str, Any]) -> None:
     now_monotonic = time.monotonic()
     data = payload.get("data", {})
     with client.lock:
+        previous_monotonic = client._last_osd_msg_monotonic
+        if previous_monotonic is not None and now_monotonic >= previous_monotonic:
+            client._osd_arrival_intervals.append(
+                (now_monotonic, now_monotonic - previous_monotonic)
+            )
+        cutoff = now_monotonic - 30.0
+        while client._osd_arrival_intervals and client._osd_arrival_intervals[0][0] < cutoff:
+            client._osd_arrival_intervals.pop(0)
         client.osd_data["latitude"] = data.get("latitude")
         client.osd_data["longitude"] = data.get("longitude")
         height = data.get("height")
@@ -60,6 +85,7 @@ def _handle_osd(client, payload: dict[str, Any]) -> None:
         client.osd_data["speed_z"] = data.get("speed_z")
         client._last_osd_time = now
         client._last_osd_msg_monotonic = now_monotonic
+        client._osd_message_count += 1
         client._osd_timestamps.append(now)
         while client._osd_timestamps and (now - client._osd_timestamps[0]) > client._freq_window:
             client._osd_timestamps.pop(0)
@@ -68,6 +94,27 @@ def _handle_osd(client, payload: dict[str, Any]) -> None:
             callback()
         except Exception:
             pass
+
+
+def _track_drc_message(
+    client,
+    payload: dict[str, Any],
+    *,
+    track_sequence: bool,
+) -> None:
+    sequence = _to_optional_int(payload.get("seq"))
+    with client.lock:
+        client._drc_message_count += 1
+        client._last_drc_msg_monotonic = time.monotonic()
+        if not track_sequence or sequence is None:
+            return
+        previous = client._last_drc_seq
+        if previous is not None and sequence != previous + 1:
+            client._drc_sequence_discontinuities += 1
+            missing = sequence - previous - 1
+            if 0 < missing <= 1_000_000:
+                client._drc_sequence_missing_total += missing
+        client._last_drc_seq = sequence
 
 
 def _handle_hsi(client, payload: dict[str, Any]) -> None:
