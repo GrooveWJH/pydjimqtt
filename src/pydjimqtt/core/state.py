@@ -78,6 +78,14 @@ def initialize_client_state(client, mqtt_client_type) -> None:
     client._freq_window = 2.0
     client._last_disconnect_rc = None
     client._last_disconnect_at = None
+    client._mqtt_disconnect_count = 0
     client._last_battery_msg_monotonic = None
     client._last_osd_msg_monotonic = None
+    client._osd_message_count = 0
+    client._osd_arrival_intervals = []
+    client._drc_message_count = 0
+    client._last_drc_msg_monotonic = None
+    client._last_drc_seq = None
+    client._drc_sequence_discontinuities = 0
+    client._drc_sequence_missing_total = 0
     client._last_hsi_msg_monotonic = None

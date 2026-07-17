@@ -36,6 +36,40 @@ def get_connection_diagnostics(client) -> dict[str, Any]:
         "connected": connected,
         "last_disconnect_rc": client._last_disconnect_rc,
         "last_disconnect_at": client._last_disconnect_at,
+        "disconnect_count": client._mqtt_disconnect_count,
+    }
+
+
+def get_osd_timing_diagnostics(client, window_sec: float = 10.0) -> dict[str, Any]:
+    now = time.monotonic()
+    cutoff = now - max(0.1, float(window_sec))
+    with client.lock:
+        intervals = [
+            float(interval)
+            for arrival, interval in client._osd_arrival_intervals
+            if arrival >= cutoff
+        ]
+        drc_message_count = int(client._drc_message_count)
+        last_drc_message_monotonic = client._last_drc_msg_monotonic
+        sequence = client._last_drc_seq
+        discontinuities = int(client._drc_sequence_discontinuities)
+        missing_total = int(client._drc_sequence_missing_total)
+    ordered = sorted(intervals)
+    p95 = None
+    maximum = None
+    if ordered:
+        index = min(len(ordered) - 1, max(0, int(0.95 * len(ordered) + 0.999999) - 1))
+        p95 = ordered[index]
+        maximum = ordered[-1]
+    return {
+        "window_samples": len(ordered),
+        "gap_p95_sec": p95,
+        "gap_max_sec": maximum,
+        "drc_message_count": drc_message_count,
+        "last_drc_message_monotonic": last_drc_message_monotonic,
+        "drc_last_sequence": sequence,
+        "drc_sequence_discontinuities": discontinuities,
+        "drc_sequence_missing_total": missing_total,
     }
 
 
@@ -79,6 +113,9 @@ def wait_for_gimbal_attitude(
 
 def get_osd_frequency(client) -> float:
     with client.lock:
+        now = time.time()
+        while client._osd_timestamps and (now - client._osd_timestamps[0]) > client._freq_window:
+            client._osd_timestamps.pop(0)
         if len(client._osd_timestamps) < 2:
             return 0.0
         time_span = client._osd_timestamps[-1] - client._osd_timestamps[0]

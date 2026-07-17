@@ -15,6 +15,7 @@ from .client_views import (
     get_connection_diagnostics,
     get_hsi_data,
     get_osd_frequency,
+    get_osd_timing_diagnostics,
     is_online,
     wait_for_gimbal_attitude,
 )
@@ -63,8 +64,10 @@ class MQTTClient:
                 console.print(f"[red]✗[/red] MQTT 连接失败: {error_msg}")
 
         def on_disconnect(client, userdata, rc):
-            self._last_disconnect_rc = int(rc)
-            self._last_disconnect_at = time.time()
+            with self.lock:
+                self._last_disconnect_rc = int(rc)
+                self._last_disconnect_at = time.time()
+                self._mqtt_disconnect_count += 1
             if rc != 0:
                 console.print(f"[yellow]MQTT 非正常断开 (rc={rc})[/yellow]")
 
@@ -137,6 +140,13 @@ class MQTTClient:
     def get_last_osd_msg_monotonic(self) -> Optional[float]:
         with self.lock:
             return self._last_osd_msg_monotonic
+
+    def get_osd_message_count(self) -> int:
+        with self.lock:
+            return int(self._osd_message_count)
+
+    def get_osd_timing_diagnostics(self, window_sec: float = 10.0) -> dict[str, Any]:
+        return get_osd_timing_diagnostics(self, window_sec)
 
     def get_last_hsi_msg_monotonic(self) -> Optional[float]:
         with self.lock:
